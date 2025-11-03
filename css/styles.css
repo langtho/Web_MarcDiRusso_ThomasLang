@@ -1,0 +1,246 @@
+:root {
+    --dark-bg: #121212;
+    --dark-surface: #1e1e1e;
+    --dark-border: #333333;
+    --text-primary: #e0e0e0;
+    --text-secondary: #aaaaaa;
+    --color-accent: #8be9fd; 
+    --color-pad-default: #333333;
+    --color-pad-playing: #ff6e6e; 
+    --color-pad-loading: #282a36; 
+    --color-pad-error: #550000;
+    --waveform-color: #50fa7b;
+}
+
+body {
+    background-color: var(--dark-bg);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center; 
+}
+
+header {
+    width: 100%;
+    text-align: center;
+    padding-bottom: 20px;
+}
+
+#app-title {
+    font-size: 1.8rem;
+    color: var(--color-accent);
+    margin: 0 0 10px 0;
+}
+
+#controls-container {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+}
+
+#app-container {
+    width: 90%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#presetSelect, #loadKitButton {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--dark-border);
+    background-color: var(--dark-surface);
+    color: var(--text-primary);
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+#waveform-wrapper {
+    position: relative;
+    width: 600px;
+    height: 100px; 
+    margin: 15px 0;
+    border: 1px solid var(--dark-border);
+    background-color: var(--dark-surface);
+    border-radius: 6px;
+}
+
+#myCanvas, #myCanvasOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2; 
+}
+
+#buttonContainer {
+    width: 600px; 
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding-top: 20px;
+}
+
+#buttonContainer button {
+    aspect-ratio: 1 / 1;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text-primary);
+    background-color: var(--color-pad-default);
+    transition: background-color 0.1s, transform 0.05s;
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--dark-border);
+    position: relative;
+    display: flex;
+    flex-direction: column; /* WICHTIG: Stapelt Inhalt vertikal */
+    transform: translateZ(0);
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 12px;
+    padding-bottom: 25px; /* KORREKTUR: Platz für den Ladebalken */
+    min-height: 80px;
+}
+
+
+#buttonContainer button:not([disabled]):active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--dark-border);
+}
+
+#buttonContainer button.loading-pad {
+    background-color: var(--color-pad-loading);
+    color: var(--text-secondary);
+}
+
+#buttonContainer button[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+.pad-info { 
+    position:absolute; 
+    bottom:8px; 
+    left:10px; 
+    right:10px; 
+    font-size:12px; 
+    color:var(--muted); 
+}
+
+.pad-content {
+    position: relative; 
+    z-index: 1;
+}
+
+
+.prog {
+    position: absolute !important; 
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    height: 6px;
+    width: calc(100% - 16px) !important;            
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;    
+    overflow: hidden;      
+    z-index: 2;
+    display: block !important;
+    will-change: transform;
+    transform: translateZ(0);
+}
+
+.bar { 
+    position: absolute;
+    left: 0;
+    top: 0;
+    
+    width: 0;        
+    height: 100% !important;       
+    
+    transform: translateZ(0) ;
+    
+    will-change: width,transform; 
+    
+    transition: width 0.4s ease !important; 
+    
+    background-color: var(--color-accent) !important; /* Erzwinge die Farbe */
+    display: block !important;
+}
+
+.sample-pad {
+    position: relative ;
+}
+
+#midi-label{
+    text-align: center;
+}
+
+.midi-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#midiStatus {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    white-space: nowrap; 
+}
+
+
+.btn {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--dark-border);
+    background-color: var(--color-pad-default); 
+    color: var(--text-primary);
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn:hover:not([disabled]) {
+    background-color: var(--dark-border);
+    border-color: var(--color-accent);
+}
+
+.btn:active:not([disabled]) {
+    transform: translateY(1px);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+
+#midiInput {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--dark-border);
+    background-color: var(--dark-bg); 
+    color: var(--text-primary);
+    transition: border-color 0.2s;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e0e0e0'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px top 50%;
+    background-size: 14px;
+}
+
+#midiInput:focus {
+    border-color: var(--color-accent);
+    outline: none;
+}
+
+.midi-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}

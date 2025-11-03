@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Modular Sampler Beatpad</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/main.js" type="module"></script>
+</head>
+
+<body>
+    <div id="app-container">
+        
+        <header>
+            <h1 id="app-title">Beatpad — Loading...</h1>
+            <div id="controls-container">
+                <label for="presetSelect">Select Kit:</label>
+                <select id="presetSelect"></select>
+                <button id="loadKitButton" >Load Kit</button> 
+            </div>
+        </header>
+
+        <div id="waveform-wrapper">
+            <canvas id="myCanvas" width="600" height="100"></canvas>
+            <canvas id="myCanvasOverlay" width="600" height="100"></canvas>
+        </div>
+
+        <div id="buttonContainer">
+            </div>
+        <div >
+      <h2 id="midi-label">MIDI-Controll</h2>
+      <div class="midi-row">
+        <button class="btn" id="midiEnableBtn">activate MIDI</button>
+        <label for="midiInput" class="midi-label" style="color:#9ca3af">MIDI-Entry:</label>
+        <select id="midiInput" disabled><option>(none)</option></select>
+        <span id="midiStatus" style="color:#9ca3af"></span>
+      </div>
+    </div>
+        
+    </div>
+</body>
+</html>
