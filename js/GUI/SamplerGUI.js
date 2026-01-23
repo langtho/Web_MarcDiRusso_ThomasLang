@@ -190,8 +190,7 @@ export default class SamplerGUI {
         formData.append("files", blob, fileName);
 
         // Uses the upload route defined in app.mjs
-        const uploadUrl = `http://localhost:3000/api/upload/${encodeURIComponent(folderName)}`;
-        
+        const uploadUrl = `/api/upload/${encodeURIComponent(folderName)}`;        
         const response = await fetch(uploadUrl, {
             method: 'POST',
             body: formData 
@@ -443,33 +442,34 @@ async handlePadDrop(e, index, button) {
         }
     }
 
-    async handlePresetSelection(samplerEngine) {
-    const selectedIndex = this.$presetSelect.value;
-    if (selectedIndex === '' || !allPresetsData[selectedIndex]) return;
-    
-    const selectedPreset = allPresetsData[selectedIndex];
-    this.currentKit = selectedPreset.name;
-    
-    if (this.$appTitle) this.$appTitle.textContent = `Beatpad — Kit: ${selectedPreset.name}`;
-    
-    const sampleData = selectedPreset.samples.map(file => {
-        // Clean the path by removing leading './'
-        const cleanPath = file.url.replace(/^\.\//, '');
+ async handlePresetSelection(samplerEngine) {
+        const selectedIndex = this.$presetSelect.value;
+        if (selectedIndex === '' || !allPresetsData[selectedIndex]) return;
         
-        // Use window.location.origin to build a valid absolute URL
-        // This prevents the 'Invalid base URL' error
-        const fullURL = `${window.location.origin}/presets/${cleanPath}`;
+        const selectedPreset = allPresetsData[selectedIndex];
+        this.currentKit = selectedPreset.name;
         
-        return {
-            name: file.name,
-            fullURL: fullURL
-        };
-    });
+        if (this.$appTitle) this.$appTitle.textContent = `Beatpad — Kit: ${selectedPreset.name}`;
 
-    samplerEngine.initializeSamples(sampleData);
-    this.renderSampleButtons(samplerEngine.getSamples());
-    await samplerEngine.loadAllSamples();
-}
+        const sampleData = selectedPreset.samples.map(file => {
+            // Remove leading ./ if present
+            const cleanPath = file.url.replace(/^\.\//, '');
+            
+            // Construct absolute URL using the current browser origin
+            // This fixes the 'Invalid base URL' error
+            const absoluteBase = new URL('/presets/', window.location.origin).toString();
+            const fullURL = new URL(cleanPath, absoluteBase).toString();
+
+            return {
+                name: file.name,
+                fullURL: fullURL
+            };
+        });
+
+        samplerEngine.initializeSamples(sampleData);
+        this.renderSampleButtons(samplerEngine.getSamples());
+        await samplerEngine.loadAllSamples();
+    }
 
     setupKeyboardListeners() {
         const physicalKeyMap = {
