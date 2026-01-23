@@ -1,13 +1,13 @@
-// Import the core audio processing class
 import SamplerEngine from './Engine/SamplerEngine.js';
-// Import the user interface handling class
 import SamplerGUI from './GUI/SamplerGUI.js';
+import { WebAudioBackend } from './Engine/AudioBackend.js';
 
-
-// Run initialization code once the page is fully loaded
 window.onload = async function init() {
-
-    // Define and gather all required DOM elements
+    const config = {
+        apiUrl: 'http://localhost:3000/api/presets',
+        audioBasePath: 'http://localhost:3000/presets/',
+        fsApiKey : "SF19OkX8syIplOcKsjGQggpGHoXr0rg0E9CteBZG" 
+    };
     const opts = {
         canvas: document.querySelector('#myCanvas'),
         canvasOverlay: document.querySelector('#myCanvasOverlay'),
@@ -15,7 +15,6 @@ window.onload = async function init() {
         $presetSelect: document.querySelector('#presetSelect'),
         $loadKitButton: document.querySelector('#loadKitButton'),
         $appTitle: document.querySelector('#app-title'),
-
         $recordButton : document.querySelector('#recordButton'),
         $stopButton : document.querySelector('#stopButton'),
         $playRecordedButton : document.querySelector('#playRecordedButton'),
@@ -23,27 +22,27 @@ window.onload = async function init() {
         $recordStatus : document.querySelector('#recordStatus')
     };
 
-    // Check if any necessary elements are missing
     if (Object.values(opts).some(el => el === null)) {
-        console.error("One or more required DOM elements are missing.");
+        console.error("Missing DOM elements");
         return;
     }
 
-    // Initialize the audio engine and the GUI
-    const samplerEngine = new SamplerEngine();
-    const samplerGUI = new SamplerGUI(samplerEngine, opts);
+   
 
-    // Add click listener to start the Web Audio Context (browser requirement)
-    this.document.addEventListener('click', () => {
+    // Initialize backend and engine
+    const backend = new WebAudioBackend();
+    const samplerEngine = new SamplerEngine(backend);
+    const samplerGUI = new SamplerGUI(samplerEngine, opts, config);
+
+   
+
+    document.addEventListener('click', () => {
         samplerEngine.ensureAudioContextRunning();
-    });
+    }, { once: true });
 
-    // Fetch and display the list of sound presets
-    await samplerGUI.fetchPresets(opts.$presetSelect,opts);
+    await samplerGUI.fetchPresets(opts.$presetSelect, opts);
 
-    // Set up the event listener for the "Load Kit" button
     opts.$loadKitButton.addEventListener('click', () => {
         samplerGUI.handlePresetSelection(samplerEngine, opts);
     });
-
 };

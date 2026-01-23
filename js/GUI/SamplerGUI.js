@@ -1,513 +1,582 @@
-// Import the component responsible for editing the waveform display
+// SamplerGUI.js
 import WaveformEditor from './WaveformEditor.js';
+import FreesoundService from '../Engine/FreesoundService.js';
+import { SoundSample } from '../Engine/SoundSample.js';
 
-// Constants for API access and audio file path
-// Use current origin to avoid hard-coding ports and to properly encode URLs.
-const API_URL = new URL('/api/presets', window.location.origin).toString();
-const AUDIO_BASE_PATH = new URL('/presets/', window.location.origin).toString();
-// Array to store all fetched preset data
 let allPresetsData = [];
 
-// The main class handling the Sampler's User Interface (GUI)
 export default class SamplerGUI {
     
-    
-    // Constructor initializes the GUI properties and components
-    constructor(engine, opts) {
-        this.engine = engine; // Reference to the SamplerEngine (audio logic)
-        
-        // References to main sample pad and preset selection elements
+    constructor(engine, opts, config) {
+        this.engine = engine; 
+        this.config = config; 
+
+        // UI elements
         this.$buttoncontainer = opts.$buttoncontainer;
         this.$presetSelect = opts.$presetSelect;
+        this.$appTitle = opts.$appTitle;
         
-        // References to MIDI interface elements
-        this.$midiEnableBtn =document.querySelector("#midiEnableBtn");
-        this.$midiInputSel =document.querySelector("#midiInput");
-        this.$midiStatus =document.querySelector("#midiStatus");
+        // Custom kit controls
+        this.$clearKitButton = document.querySelector("#clearKitButton");
+        this.$saveKitButton = document.querySelector("#saveKitButton");
+        this.currentPreview = null;
+        this.currentKit = null;
 
-        //Recording controls
+        // MIDI elements
+        this.$midiEnableBtn = document.querySelector("#midiEnableBtn");
+        this.$midiInputSel = document.querySelector("#midiInput");
+        this.$midiStatus = document.querySelector("#midiStatus");
+
+        // Recording elements
         this.$recordButton = opts.$recordButton;
         this.$stopButton = opts.$stopButton;
         this.$playRecordedButton = opts.$playRecordedButton;
         this.$addRecordedButton = opts.$addRecordedButton;
         this.$recordStatus = opts.$recordStatus;
 
-        // Internal MIDI state variables
-        this.midiAccess =null;
-        this.currenMidiInput=null;
-        this.BASE_NOTE=36; // C2, the lowest MIDI note mapped to pad 1
+        // Sidebar and Freesound
+        this.$sidebar = document.querySelector("#sidebar");
+        this.$menuToggle = document.querySelector("#menu-toggle");
+        this.$fsInput = document.querySelector('#fsSearchInput');
+        this.$fsBtn = document.querySelector('#fsSearchBtn');
+        this.$fsResults = document.querySelector('#fsResults');
 
-        // Initialize the WaveformEditor component
-        this.editor = new WaveformEditor(opts.canvas, opts.canvasOverlay, this.engine.playSample.bind(this.engine));
+        // Event Listeners
+        if (this.$menuToggle) {
+            this.$menuToggle.onclick = () => this.$sidebar.classList.toggle("open");
+        }
+        if (this.$clearKitButton) {
+            this.$clearKitButton.onclick = () => this.startCustomKit();
+        }
+        if (this.$saveKitButton) {
+            this.$saveKitButton.onclick = () => this.saveKit();
+        }
+
+        // State
+        this.midiAccess = null;
+        this.currenMidiInput = null;
+        this.BASE_NOTE = 36; 
+        this.padElements = new Map();
+
+        // Components
+        this.editor = new WaveformEditor(opts.canvas, opts.canvasOverlay, document.querySelector("#freqCanvasEditor"), this.engine.playSample.bind(this.engine));
         
-        // Set up custom event handlers from the SamplerEngine
         this.setupEngineCallbacks();
-        // Set up MIDI button and dropdown listeners
         this.setupMidiListeners();
-
-        //Setup recording listener
         this.setupRecordingListeners();
+        this.setupKeyboardListeners();
+        this.setupEqualizerListeners();
+        if (this.engine.analyser) {
+        this.editor.startFrequencyVisualizer(this.engine.analyser);
+        this.startMasterVisualizer(this.engine.analyser);
+        }
+        if (config.fsApiKey) {
+            this.setupFreesound(config.fsApiKey);
+        }
     }
 
-    // Connects functions in the GUI to custom events fired by the Engine
+    // --- Core Logic Methods ---
+
+    startMasterVisualizer(analyser) {
+        const canvas = document.querySelector("#freqCanvasMaster");
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        const draw = () => {
+            requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArray);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#8be9fd'; // Dein Cyan-Akzent
+            
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = (dataArray[i] / 255) * canvas.height;
+                ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        };
+        draw();
+    }
+
+    startCustomKit() {
+        this.engine.initializeSamples([]); 
+        this.engine.samples = Array(16).fill(null);
+        this.currentKit=null;
+        this.renderSampleButtons(this.engine.getSamples());
+        
+        if (this.$appTitle) {
+            this.$appTitle.textContent = "Beatpad — Custom Kit Mode";
+        }
+        this.editor.selectSample(null);
+    }
+
+    async saveKit() {
+    let kitName = this.currentKit;
+    let isUpdate = !!kitName;
+
+    // If no kit is loaded, ask for a name
+    if (!isUpdate) {
+        kitName = prompt("Enter a name for your new kit:", "My Custom Kit");
+        if (!kitName || kitName.trim() === "") return;
+    }
+
+    try {
+        this.$saveKitButton.disabled = true;
+        this.$saveKitButton.innerHTML = isUpdate ? "Updating..." : "Saving...";
+
+        const samples = this.engine.getSamples();
+        const samplesToSave = [];
+
+        for (let i = 0; i < samples.length; i++) {
+            const s = samples[i];
+            if (!s) continue;
+
+            // Upload recording if needed
+            if (s.url === null && s.buffer) {
+                const uploadedUrl = await this.uploadRecordedSample(s, kitName);
+                if (uploadedUrl) s.url = uploadedUrl;
+            }
+            
+            samplesToSave.push({ name: s.name, url: s.url });
+        }
+
+        const kitData = {
+            name: kitName,
+            type: "custom",
+            isFactoryPresets: false,
+            samples: samplesToSave
+        };
+
+        // Determine method and URL based on current state
+        const url = isUpdate 
+            ? `${this.config.apiUrl}/${encodeURIComponent(this.currentKit)}` 
+            : this.config.apiUrl;
+        const method = isUpdate ? 'PATCH' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(kitData)
+        });
+
+        if (!response.ok) throw new Error("Server error during save");
+
+        const result = await response.json();
+        this.currentKit = result.name; // Sync name in case it changed
+
+        alert(isUpdate ? `Kit "${kitName}" updated!` : `Kit "${kitName}" saved!`);
+        await this.fetchPresets(); 
+
+    } catch (error) {
+        console.error("Save failed:", error);
+        alert("Error while saving/updating kit.");
+    } finally {
+        this.$saveKitButton.disabled = false;
+        this.$saveKitButton.innerHTML = "Save Kit";
+    }
+}
+
+    async uploadRecordedSample(sample, folderName) {
+        const blob = this.engine.lastBlob; // Accesses engine's binary data
+        if (!blob) return null;
+
+        const formData = new FormData();
+        const fileName = `${sample.name.replace(/\s+/g, '_')}.wav`;
+        formData.append("files", blob, fileName);
+
+        // Uses the upload route defined in app.mjs
+        const uploadUrl = `http://localhost:3000/api/upload/${encodeURIComponent(folderName)}`;
+        
+        const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData 
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            return result.files[0].url; // Returns server-provided path
+        }
+        return null;
+    }
+
+
     setupEngineCallbacks() {
-        // Called when a sample finishes loading successfully
         this.engine.onSampleReady = (sample) => {
-            const button = document.getElementById(`pad-button-${sample.name}`);
+            const index = this.engine.getSamples().indexOf(sample);
+            const button = document.getElementById(`pad-button-${index}`);
             if (button) {
-                const label= button.querySelector('span');
-                if(label){
-                    label.innerText = sample.name; // Update text
-                }
+                const label = button.querySelector('span');
+                if (label) label.innerText = sample.name;
                 button.classList.remove('loading-pad');
                 button.classList.add('ready-pad');
-                button.disabled = false; // Enable the pad button
+                button.disabled = false;
+                const els = this.padElements.get(sample.name);
+                if (els && els.bar) els.bar.style.width = '100%';
             }
         };
 
-        // Called if a sample fails to load
-        this.engine.onSampleError = (sample, error) => {
-            const button = document.getElementById(`pad-button-${sample.name}`);
-            if (button) {
-                button.disabled = true; 
-                button.textContent = `Error: ${sample.name}`;
-                button.classList.add('error-pad');
-            }
-        };
-
-        // Called when a sample is selected (e.g., to view its waveform)
-        this.engine.onSampleSelect = (sample) => {this.editor.selectSample(sample);};
+        this.engine.onSampleSelect = (sample) => { this.editor.selectSample(sample); };
         
-        // Called repeatedly while a sample is downloading to update the progress bar
         this.engine.onProgress = (sample, received, total) => {
             const els = this.padElements.get(sample.name);
-            console.log(`Progress debug for ${sample.name}:`, {
-                foundElements: els,
-                buttonHTML: els?.button?.innerHTML,
-                progExists: els?.prog instanceof HTMLElement,
-                barExists: els?.bar instanceof HTMLElement
-            });
-
-            if (!els || !els.bar) {
-                console.warn(`Missing elements for ${sample.name}`);
-                return;
-            }
-
-            // Calculate percentage based on total size, or use a logarithmic fallback
-            let pct;
-            if (total && total > 0) {
-                pct = Math.max(0, Math.min(100, Math.floor((received / total) * 100)));
-            } else {
-                // Fallback for when total size isn't known yet
-                pct = Math.min(95, Math.floor(Math.log10((received || 0) * 25)));
-            }
-            
-            const finalPct =Math.max(1,pct); // Ensure minimum 1% width
-            console.log(finalPct)
-            
-            els.bar.style.width=`${finalPct}%`; // Update the visual progress bar width
-
-            // Debugging progress bar dimensions
-            const computed = getComputedStyle(els.bar);
-            console.log(`Progress ${sample.name}: ${pct}%`, {
-                pct,
-                inlineWidth: els.bar.style.width,
-                computedWidth: computed.width,
-                computedDisplay: computed.display,
-                computedPosition: computed.position,
-                barRect: els.bar.getBoundingClientRect()
-            });
+            if (!els || !els.bar) return;
+            let pct = (total && total > 0) 
+                ? Math.max(0, Math.min(100, Math.floor((received / total) * 100)))
+                : Math.min(95, Math.floor(Math.log10((received || 0) * 25)));
+            els.bar.style.width = `${Math.max(1, pct)}%`;
         };
 
         this.engine.onRecordingStart = () => {
-            this.setRecordControlsState(true,false);
-            this.$recordStatus.textContent ="Recording...";
+            this.setRecordControlsState(true, false);
+            this.$recordStatus.textContent = "• RECORDING";
+            this.$recordStatus.classList.add('recording-active');
+            this.$recordButton.classList.add('is-recording');
         };
-        
+
         this.engine.onRecordingStop = () => {
-            this.setRecordControlsState(false,false);
-            this.$recordStatus.textContent ="Process Recording...";
+            this.setRecordControlsState(false, false);
+            this.$recordStatus.classList.remove('recording-active');
+            this.$recordButton.classList.remove('is-recording');
         };
+        this.engine.onNewSampleReady = () => {
+            this.setRecordControlsState(false, true);
+            this.$recordStatus.textContent = "Recording Ready! Drag me to a pad.";
+            this.$recordStatus.draggable = true;
+            this.$recordStatus.style.cursor = "grab";
+            this.$recordStatus.classList.add("draggable-ready");
 
-        this.engine.onNewSampleReady = (buffer) => {
-            this.setRecordControlsState(false,true);
-            this.$recordStatus.textContent ="Recording ready";
-        };
+            this.$recordStatus.ondragstart = (e) => {
+                const data = { type: "internal-recording", name: "My Recording" };
+                e.dataTransfer.setData('application/json', JSON.stringify(data));
+                this.$recordStatus.style.opacity = "0.5";
+            };
 
-        this.engine.onStatus = (sample, status) => {
-            if(!sample) {
-                this.$recordStatus.textContent = `${status.message}`;
-            }
+            this.$recordStatus.ondragend = () => {
+                this.$recordStatus.style.opacity = "1";
+            };
         };
-
-        this.engine.onError = (sample, error) => {
-            if(!sample) {
-                this.$recordStatus.textContent = `Error: ${error.message || error}`;
-            }
-        };
+        this.engine.onStatus = (sample, status) => { if(!sample) this.$recordStatus.textContent = status.message; };
     }
-    
-    // Dynamically creates and renders the 16 sample pad buttons
+
     renderSampleButtons(samples) {
-        this.$buttoncontainer.innerHTML = ''; // Clear existing buttons
-        
-        const engine = this.engine;
-        const PAD_COUNT = 16;
-        
-        // Map samples by name for quick lookup during click handling
-        const samplesByName = new Map();
-        samples.forEach(sample => samplesByName.set(sample.name, sample));
-        
-        this.padElements=new Map(); // Stores references to progress bar elements per sample
+        this.$buttoncontainer.innerHTML = ''; 
+        const ROW_SIZE = 4;
+        this.padElements = new Map();
 
-        // Loop to create 16 pad elements
-        for (let i = 0; i < PAD_COUNT; i++) {
-            const sample = samples[i]; 
+        for (let row = 3; row >= 0; row--) {
+            for (let col = 0; col < ROW_SIZE; col++) {
+                const i = row * ROW_SIZE + col; 
+                const sample = samples[i]; 
 
-            const button = document.createElement('button');
-            
-            // Set unique ID for the button
-           const padID = sample 
-                ? `pad-button-${sample.name}`
-                : `pad-placeholder-${i}`; 
+                const button = document.createElement('button');
+                button.dataset.index = i; 
+                button.classList.add('sample-pad');
 
-            button.id = padID;
+                if (sample) {
+                    button.id = `pad-button-${i}`;
+                    this._createPadInner(button, sample);
+                    if (sample.buffer) {
+                        button.classList.add('ready-pad');
+                        const els = this.padElements.get(sample.name);
+                        if (els && els.bar) els.bar.style.width = '100%';
+                    } else {
+                        button.classList.add('loading-pad');
+                    }
+                } else {
+                    button.id = `pad-placeholder-${i}`;
+                    button.innerText = `Pad ${i + 1}`;
+                    button.classList.add('empty-pad');
+                }
 
-            if (sample) {
-                // Create content (label, progress bar) for valid samples
-                const contentDiv = document.createElement('div');
-                contentDiv.classList.add('pad-content');
-
-                const label = document.createElement('span');
-                label.innerText = sample.name + (sample.buffer ? '' : ' (Loading...)');
-                contentDiv.appendChild(label); 
-
-                button.appendChild(contentDiv); 
-                
-                // Create progress bar structure
-                const progDiv = document.createElement('div');
-                progDiv.classList.add('prog');
-                
-                const barDiv = document.createElement('div');
-                barDiv.classList.add('bar');
-                
-                progDiv.appendChild(barDiv);
-                button.appendChild(progDiv);
-
-                button.classList.add('sample-pad', 'loading-pad');
-
-                // Debug: Log created elements
-                console.log(`Created elements for ${sample.name}:`, {
-                    button,
-                    prog: progDiv,
-                    bar: barDiv,
-                    html: button.innerHTML
-                });
-
-                // Store references to the button elements for progress updates
-                this.padElements.set(sample.name, {
-                    button,
-                    prog: progDiv,
-                    bar: barDiv
-                });
-            } else {
-                // Handle pads beyond the number of available samples
-                button.innerText = `Pad ${i + 1} (Empty)`;
-                button.disabled = true;
-                button.classList.add('empty-pad');
+                button.ondragover = (e) => { e.preventDefault(); button.classList.add('drop-hover'); };
+                button.ondragleave = () => button.classList.remove('drop-hover');
+                button.ondrop = (e) => this.handlePadDrop(e, i, button);
+                this.$buttoncontainer.appendChild(button);
             }
-
-            this.$buttoncontainer.appendChild(button);
         }
 
-        // Add a single delegated click listener to the container
-        this.$buttoncontainer.addEventListener('click', (event) => {
-            // Find the closest button element that was clicked
-            const button = event.target.closest('BUTTON');
-            if (!button || button.disabled || !button.classList.contains('sample-pad')) {
-                return; // Ignore if not a valid, enabled sample button
+        this.$buttoncontainer.onclick = (event) => {
+            const btn = event.target.closest('.sample-pad');
+            if (!btn || btn.classList.contains('empty-pad')) return;
+            const index = btn.dataset.index;
+            const sample = this.engine.getSamples()[index];
+            if (sample && sample.buffer) {
+                this.engine.selectSample(sample);
+                this.engine.playSample(sample);
             }
-
-            const sampleName = button.id.replace('pad-button-', '');
-            
-            const clickedSample = samplesByName.get(sampleName);
-
-            if (clickedSample && clickedSample.buffer) {
-                console.log("Button clicked for sample (delegated):", clickedSample.name);
-
-                const currentSample = engine.getCurrentSample(); 
-                
-                if (currentSample === clickedSample) {
-                    // If the sample is already selected, play it
-                } else {
-                    // Otherwise, select the sample (to view waveform) and play it
-                    engine.selectSample(clickedSample);
-                }
-                
-                engine.playSample(clickedSample);
-            }
-        });
+        };
     }
 
+    _createPadInner(button, sample) {
+        const content = document.createElement('div');
+        content.className = 'pad-content';
+        content.innerHTML = `<span>${sample.name}</span>`;
+        button.appendChild(content);
+        const prog = document.createElement('div');
+        prog.className = 'prog';
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        prog.appendChild(bar);
+        button.appendChild(prog);
+        this.padElements.set(sample.name, { button, prog, bar });
+    }
 
-    // Fetches the list of available preset kits from the API
-    async  fetchPresets($presetSelect,  opts) {
+  // SamplerGUI.js
 
+async handlePadDrop(e, index, button) {
+    e.preventDefault();
+    button.classList.remove('drop-hover');
+    
     try {
-        const response = await fetch(API_URL);
-        allPresetsData = await response.json(); // Store the data globally
+        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        const samples = this.engine.getSamples();
+        
+        // 1. Handle Internal Recording Drop
+        if (data.type === "internal-recording") {
+            const buffer = this.engine.lastRecordedBuffer;
+            if (!buffer) return;
 
-        $presetSelect.innerHTML = '';
-        // Add a default "Select" option
-        let first_option = document.createElement('option');
-        first_option.value = '';
-        first_option.textContent = '-- Select a preset kit --';
-        $presetSelect.appendChild(first_option);
-        opts.$appTitle.textContent = "Beatpad - Kits loaded";
+            const name = prompt("Name your recording:", data.name) || "Rec";
+            const newSample = new SoundSample(name, null); // URL is null for new recordings
+            newSample.buffer = buffer;
+            newSample.trimStart = 0;
+            newSample.trimEnd = buffer.duration;
 
-        if (allPresetsData.length === 0) {
-            $presetSelect.innerHTML = '<option value="">No presets available</option>';
+            samples[index] = newSample;
+            this.renderSampleButtons(samples);
+            this.engine.onSampleReady(newSample);
+            this.engine.selectSample(newSample);
+            
+            // Reset status after successful drop
+            this.$recordStatus.draggable = false;
+            this.$recordStatus.textContent = "Recording added to pad.";
             return;
         }
 
-        // Populate the dropdown with fetched preset names
-        allPresetsData.forEach((pre, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.textContent = pre.name;
-            $presetSelect.appendChild(option);
-        });
+        // 2. Handle Freesound Drop
+        let targetSample = samples[index];
+        if (!targetSample) {
+            targetSample = new SoundSample(data.name, data.url);
+            samples[index] = targetSample;
+        } else {
+            targetSample.name = data.name;
+            targetSample.url = data.url;
+        }
 
-    } catch (error) {
-        console.error("Error fetching presets:", error);
-        $presetSelect.innerHTML = '<option value="">Error loading presets</option>';
+        this.renderSampleButtons(samples);
+        const buffer = await this.engine.loadAndDecodeSoundStream(data.url, targetSample);
+        if (buffer) {
+            targetSample.buffer = buffer;
+            targetSample.trimEnd = buffer.duration;
+            this.engine.onSampleReady(targetSample);
+            this.engine.selectSample(targetSample);
+        }
+    } catch (err) {
+        console.error("Drop failed:", err);
     }
 }
 
-    // Handles the UI and Engine steps when a user selects a kit and clicks 'Load'
-    async handlePresetSelection(samplerEngine,  opts) {
-    const $presetSelect = document.querySelector('#presetSelect');
-    const selectedIndex = $presetSelect.value;
-    if (selectedIndex === '') return;
-
-    if (!allPresetsData || !allPresetsData[selectedIndex]) {
-        console.error(`Preset data missing for index: ${selectedIndex}. Aborting selection.`);
-        return;
+    setupFreesound(apiKey) {
+        this.freesound = new FreesoundService(apiKey);
+        if(this.$fsBtn){
+        this.$fsBtn.onclick = () => this.handleFreesoundSearch();
+        }
     }
 
-    const selectedPreset = allPresetsData[selectedIndex];
-
-    if (opts.$appTitle && selectedPreset.name) {
-        opts.$appTitle.textContent = `Beatpad - Loaded Kit: ${selectedPreset.name}`;
+    async handleFreesoundSearch() {
+        const query = this.$fsInput.value;
+        if (!query) return;
+        this.$fsResults.innerHTML = "Searching...";
+        try {
+            const results = await this.freesound.search(query);
+            this.renderFreesoundResults(results);
+        } catch (e) { this.$fsResults.innerHTML = "Search error"; }
     }
 
-    const files = Array.isArray(selectedPreset.samples) ? selectedPreset.samples : [];
-
-    if (files.length === 0) {
-        $buttoncontainer.innerHTML = '<p>No samples in this preset.</p>';
-        samplerEngine.initializeSamples([]);
-        return;
+    renderFreesoundResults(results) {
+        this.$fsResults.innerHTML = '';
+        results.forEach(res => {
+            const div = document.createElement('div');
+            div.className = 'fs-result-item';
+            div.draggable = true;
+            const previewUrl = res.previews['preview-hq-mp3'];
+            div.innerHTML = `<div class="fs-info"><span class="fs-name">${res.name}</span></div>
+                <div class="fs-actions"><button class="fs-preview-btn btn-sm" title="Listen"><i class="fa-solid fa-play"></i></button></div>`;
+            div.ondragstart = (e) => {
+                const data = { name: res.name, url: previewUrl };
+                e.dataTransfer.setData('application/json', JSON.stringify(data));
+            };
+            div.querySelector('.fs-preview-btn').onclick = (e) => {
+                e.stopPropagation();
+                if (this.currentPreview) { this.currentPreview.pause(); this.currentPreview = null; }
+                this.currentPreview = new Audio(previewUrl);
+                this.currentPreview.play();
+                const icon = e.currentTarget.querySelector('i');
+                icon.classList.replace('fa-play', 'fa-volume-high');
+                this.currentPreview.onended = () => icon.classList.replace('fa-volume-high', 'fa-play');
+            };
+            this.$fsResults.appendChild(div);
+        });
     }
 
+    async fetchPresets() {
+        try {
+            const response = await fetch(this.config.apiUrl);
+            if (!response.ok) throw new Error("Fetch error");
+            allPresetsData = await response.json();
+            if (this.$appTitle) this.$appTitle.textContent = "Beatpad — Kits Loaded"; 
+            this.$presetSelect.innerHTML = '<option value="">-- Select a preset kit --</option>';
+            allPresetsData.forEach((pre, index) => {
+                const opt = document.createElement('option');
+                opt.value = index;
+                opt.textContent = pre.name;
+                this.$presetSelect.appendChild(opt);
+            });
+        } catch (e) { 
+            console.error("Presets error", e); 
+            if (this.$appTitle) this.$appTitle.textContent = "Beatpad — Error";
+        }
+    }
 
-    // Convert relative file paths to full URLs
-    const sampleData = files.map(file => {
-        const raw = String(file?.url ?? '').trim();
-        const relative = raw.replace(/^\.\//, '').replace(/^\//, '');
-        const fullURL = new URL(relative, AUDIO_BASE_PATH).toString();
-        return {
+    async handlePresetSelection(samplerEngine) {
+        const selectedIndex = this.$presetSelect.value;
+        if (selectedIndex === '' || !allPresetsData[selectedIndex]) return;
+        const selectedPreset = allPresetsData[selectedIndex];
+        this.currentKit = selectedPreset.name;
+        if (this.$appTitle) this.$appTitle.textContent = `Beatpad — Kit: ${selectedPreset.name}`;
+        const sampleData = selectedPreset.samples.map(file => ({
             name: file.name,
-            fullURL: fullURL
+            fullURL: new URL(file.url.replace(/^\.\//, ''), this.config.audioBasePath).toString()
+        }));
+        samplerEngine.initializeSamples(sampleData);
+        this.renderSampleButtons(samplerEngine.getSamples());
+        await samplerEngine.loadAllSamples();
+    }
+
+    setupKeyboardListeners() {
+        const physicalKeyMap = {
+            'Digit1': 12, 'Digit2': 13, 'Digit3': 14, 'Digit4': 15,
+            'KeyQ': 8, 'KeyW': 9, 'KeyE': 10, 'KeyR': 11,
+            'KeyA': 4, 'KeyS': 5, 'KeyD': 6, 'KeyF': 7,
+            'KeyZ': 0, 'KeyX': 1, 'KeyC': 2, 'KeyV': 3
+        };
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            const padIndex = physicalKeyMap[e.code];
+            const sample = this.engine.getSamples()[padIndex];
+            if (sample?.buffer) {
+                this.engine.playSample(sample);
+                const els = this.padElements.get(sample.name);
+                if (els) {
+                    els.button.classList.add("playing");
+                    setTimeout(() => els.button.classList.remove("playing"), 150);
+                }
+            }
+        });
+    }
+
+    setupMidiListeners() {
+        this.$midiEnableBtn.onclick = async () => {
+            try {
+                this.midiAccess = await navigator.requestMIDIAccess();
+                this.populateInputs();
+                this.$midiInputSel.disabled = false;
+                this.$midiStatus.textContent = "MIDI active";
+            } catch (e) { this.$midiStatus.textContent = "Access denied"; }
+        };
+        this.$midiInputSel.onchange = () => this.bindSelectedMidiInput();
+    }
+
+    populateInputs() {
+        this.$midiInputSel.innerHTML = "";
+        this.midiAccess.inputs.forEach(input => {
+            const opt = document.createElement("option");
+            opt.value = input.id;
+            opt.textContent = input.name || input.id;
+            this.$midiInputSel.appendChild(opt);
+        });
+        this.bindSelectedMidiInput();
+    }
+
+    bindSelectedMidiInput() {
+        if (this.currenMidiInput) this.currenMidiInput.onmidimessage = null;
+        const input = Array.from(this.midiAccess.inputs.values()).find(i => i.id === this.$midiInputSel.value);
+        if (!input) return;
+        input.onmidimessage = (e) => {
+            const [status, note, velocity] = e.data;
+            if ((status & 0xF0) === 0x90 && velocity > 0) {
+                const padIndex = note - this.BASE_NOTE;
+                const sample = this.engine.getSamples()[padIndex];
+                if (sample?.buffer) this.engine.playSample(sample);
+            }
+        };
+        this.currenMidiInput = input;
+    }
+
+    setRecordControlsState(isRec, hasBuf) {
+        this.$recordButton.disabled = isRec;
+        this.$stopButton.disabled = !isRec;
+        this.$playRecordedButton.disabled = !hasBuf;
+        this.$addRecordedButton.disabled = !hasBuf;
+    }
+
+    setupRecordingListeners() {
+        this.$recordButton.onclick = async () => {
+            if (!this.engine.recorder) await this.engine.initrecorder();
+            if (this.engine.recorder && !this.engine.isRecording) this.engine.startRecording();
+        };
+        this.$stopButton.onclick = () => this.engine.stopRecording();
+        this.$playRecordedButton.onclick = () => this.engine.playRecordedSample();
+        this.$addRecordedButton.onclick = () => {
+            const name = prompt("Name for recording:", "Custom Rec");
+            if (name && this.engine.addRecordedSample(name)) {
+                this.renderSampleButtons(this.engine.getSamples());
+            }
+        };
+    }
+
+
+setupEqualizerListeners() {
+    // EQ Sliders mapping
+    document.querySelectorAll('.eq-slider').forEach(slider => {
+        slider.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            const index = parseInt(e.target.dataset.filter);
+            if (this.engine.filters[index]) {
+                this.engine.filters[index].gain.value = val;
+                const output = document.querySelector(`#gain${index}`);
+                if (output) output.value = `${val} dB`;
+            }
         };
     });
 
-
-    // Initialize the engine with the new sample list
-    samplerEngine.initializeSamples(sampleData, selectedPreset.name);
-    // Render the new set of buttons based on the samples
-    this.renderSampleButtons(samplerEngine.getSamples());
-    // Wait briefly before starting loading (ensures DOM is updated)
-    await new Promise(resolve=> setTimeout(resolve,50));
-    this.initLoadingBars(); // Reset progress bars to 0%
-    // Tell the engine to begin downloading and decoding all samples
-    await samplerEngine.loadAllSamples();
-}
-
-
-// Resets the visual loading bars on all sample pads
-initLoadingBars() {
-        this.engine.getSamples().forEach(sample => {
-            const els = this.padElements.get(sample.name);
-            if (els && els.bar) {
-                els.bar.style.transition = ''; // Remove transition for immediate reset
-                els.bar.style.width = '0%';
-            }
-        });
+    // Master Gain
+    const volSlider = document.querySelector('#masterVolumeSlider');
+    if (volSlider) {
+        volSlider.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            this.engine.masterGain.gain.value = val / 10;
+            const output = document.querySelector('#masterGainOutput');
+            if (output) output.value = val;
+        };
     }
 
-
-// Sets up listeners for the MIDI activation button and input selector
-setupMidiListeners(){
-    this.$midiEnableBtn.addEventListener("click",async()=>{
-        if(!navigator.requestMIDIAccess){
-            this.$midiStatus.textContent = "Web MIDI isn't supportet";
-            return;
-        }
-        try{
-            // Request access to Web MIDI API
-            this.midiAccess = await navigator.requestMIDIAccess();
-            this.$midiStatus.textContent="MIDI activated. Choose Input Instrument";
-            this.populateInputs(); // Fill the dropdown with available devices
-            this.$midiInputSel.disabled=false;
-            // Re-run populateInputs if a device is connected/disconnected
-            this.midiAccess.onstatechange = this.populateInputs.bind(this);
-        }catch(e){
-            this.$midiStatus.textContent="MIDI access refused";
-            console.error("MIDI access error:",e);
-        }
-    });
-    // Listen for changes in the MIDI input dropdown
-    this.$midiInputSel.addEventListener("change", this.bindSelectedMidiInput.bind(this));
-}
-
-// Populates the MIDI input selector dropdown with available devices
-populateInputs() {
-    this.$midiInputSel.innerHTML = "";
-    
-    if (!this.midiAccess || !this.midiAccess.inputs.size) {
-        this.$midiInputSel.innerHTML = "<option>(no input)</option>";
-        this.$midiInputSel.disabled = true;
-        this.bindSelectedMidiInput(); // Unbind any current input
-        return;
-    }
-    
-    // Add an option for each found MIDI input device
-    this.midiAccess.inputs.forEach(input => {
-        const opt = document.createElement("option");
-        opt.value = input.id;
-        opt.textContent = input.name || input.id;
-        this.$midiInputSel.appendChild(opt);
-    });
-
-    this.bindSelectedMidiInput(); // Automatically bind the first or previously selected input
-}
-
-// Sets the event handler for the currently selected MIDI input device
-bindSelectedMidiInput() {
-    // Clear the message handler from the previously selected device
-    if (this.currenMidiInput) {
-        this.currenMidiInput.onmidimessage = null; 
-    }
-
-    const id = this.$midiInputSel.value;
-   
-    // Find the device corresponding to the selected ID
-    const input = Array.from(this.midiAccess?.inputs.values() || []).find(i => i.id === id);
-
-    if (!input) {
-        this.$midiStatus.textContent = "Device not found or no device selected.";
-        this.currenMidiInput = null;
-        return;
-    }
-
-    // Assign the main MIDI message handler
-    input.onmidimessage = (event) => {
-        // MIDI message data: status, note number, velocity
-        const [status, note, velocity] = event.data;
-        const command = status & 0xF0; // Extract the command type
-        
-        // Check for 'Note On' command (0x90) with a velocity greater than 0
-        if (command === 0x90 && velocity > 0) {
-            // Map the incoming MIDI note to a pad index (e.g., C2 (36) maps to pad 0)
-            const padIndex = note - this.BASE_NOTE;
-            
-            const samples = this.engine.getSamples(); 
-            
-            // Check if the pad index is valid
-            if (padIndex >= 0 && padIndex < samples.length) {
-                const sampleToPlay = samples[padIndex];
-                
-                // Only play if the sample is fully loaded (has a buffer)
-                if (sampleToPlay.buffer) {
-                    this.engine.playSample(sampleToPlay);
-                    
-                    // Add a quick visual feedback effect to the corresponding pad button
-                    const els = this.padElements.get(sampleToPlay.name);
-                    if (els) {
-                        els.button.classList.add("playing");
-                        setTimeout(()=>els.button.classList.remove("playing"), 150);
-                    }
-                }
-            }
-        }
-    };
-
-    this.currenMidiInput = input;
-    this.$midiStatus.textContent = `Connected: ${input.name} `;
-}
-
-setRecordControlsState(isRecording,hasRecordedBuffer ){
-    if(isRecording){
-        this.$recordButton.disabled = true;
-        this.$stopButton.disabled = false;
-        this.$playRecordedButton.disabled = true;
-        this.$addRecordedButton.disabled = true;
-    }else{
-        this.$recordButton.disabled = false;
-        this.$stopButton.disabled = true;
-
-        this.$playRecordedButton.disabled = !hasRecordedBuffer;
-        this.$addRecordedButton.disabled = !hasRecordedBuffer;
+    // Balance
+    const balSlider = document.querySelector('#balanceSlider');
+    if (balSlider) {
+        balSlider.oninput = (e) => {
+            const val = parseFloat(e.target.value);
+            this.engine.stereoPanner.pan.value = val;
+            const output = document.querySelector('#balanceOutput');
+            if (output) output.value = val;
+        };
     }
 }
-
-setupRecordingListeners(){
-    this.setRecordControlsState(false,false);
-
-    this.$recordButton.addEventListener('click', async () => {
-        if (!this.engine.recorder) {
-            this.$recordStatus.textContent = "Requesting mic access...";
-            const initialized = await this.engine.initrecorder();
-            
-            if (initialized) {
-                this.engine.lastRecordedBuffer = null; // Sicherstellen, dass der Puffer leer ist
-                this.setRecordControlsState(false, false);
-                this.$recordStatus.textContent = "Ready to record. Click again to start.";
-            } else {
-                this.setRecordControlsState(false, false);
-                this.$recordStatus.textContent = "Microphone access denied.";
-            }
-            return; 
-        }
-
-        if (this.engine.recorder && !this.engine.isRecording) {
-            this.engine.startRecording();
-        }
-    });
-
-    this.$stopButton.addEventListener("click",()=>{
-        this.engine.stopRecording();
-    });
-
-    this.$playRecordedButton.addEventListener("click",()=>{
-        this.engine.playRecordedSample();
-    });
-
-    this.$addRecordedButton.addEventListener("click",()=>{
-        const sampleName = prompt("Enter a name for the recorded sample:", "Custom Rec");
-        if(sampleName){
-            const added = this.engine.addRecordedSample(sampleName);
-            if(added){
-                this.renderSampleButtons(this.engine.getSamples());
-                this.engine.lastRecordedBuffer =null;
-                this.setRecordControlsState(false,false);
-                this.$recordStatus.textContent ="Recorded sample added to pads.";
-            }
-        }
-    });
-
-}
-
 
 
 }

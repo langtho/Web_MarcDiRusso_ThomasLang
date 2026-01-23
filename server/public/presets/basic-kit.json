@@ -1,13 +1,37 @@
 {
   "name": "Basic Kit",
-  "type": "Drumkit",
-  "isFactoryPresets": true,
+  "type": "custom",
+  "isFactoryPresets": false,
   "samples": [
-    { "url": "./basic-kit/kick.wav", "name": "kick" },
-    { "url": "./basic-kit/snare.wav", "name": "snare" },
-    { "url": "./basic-kit/hihat.wav", "name": "hihat" },
-    { "url": "./basic-kit/tom1.wav", "name": "tom1" },
-    { "url": "./basic-kit/tom2.wav", "name": "tom2" },
-    { "url": "./basic-kit/tom3.wav", "name": "tom3" }
-  ]
+    {
+      "name": "kick",
+      "url": "http://localhost:3000/presets/basic-kit/kick.wav"
+    },
+    {
+      "name": "snare",
+      "url": "http://localhost:3000/presets/basic-kit/snare.wav"
+    },
+    {
+      "name": "hihat",
+      "url": "http://localhost:3000/presets/basic-kit/hihat.wav"
+    },
+    {
+      "name": "tom1",
+      "url": "http://localhost:3000/presets/basic-kit/tom1.wav"
+    },
+    {
+      "name": "tom2",
+      "url": "http://localhost:3000/presets/basic-kit/tom2.wav"
+    },
+    {
+      "name": "tom3",
+      "url": "http://localhost:3000/presets/basic-kit/tom3.wav"
+    },
+    {
+      "name": "wolf-privet.wav",
+      "url": "https://cdn.freesound.org/previews/575/575695_7495013-hq.mp3"
+    }
+  ],
+  "slug": "basic-kit",
+  "updatedAt": "2026-01-23T13:48:12.641Z"
 }

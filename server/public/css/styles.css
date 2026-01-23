@@ -1,11 +1,254 @@
+:root {
+    --dark-bg: #121212;
+    --dark-surface: #1e1e1e;
+    --dark-border: #333333;
+    --text-primary: #e0e0e0;
+    --text-secondary: #aaaaaa;
+    --color-accent: #8be9fd; 
+    --color-pad-default: #333333;
+    --color-pad-playing: #50fa7b; 
+    --color-pad-loading: #282a36; 
+    --waveform-color: #50fa7b;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    margin: 40px;
-    padding: 0;
-    background-color: #f4f4f4;
+    background-color: var(--dark-bg);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
 }
 
-h1, h2, h3 {
-    color: #333;
+#app-container {
+    width: 95%;
+    max-width: 1100px;
+    margin: 0 auto;
+    position: relative; /* Basis für absolute Positionierung des Burger-Icons */
 }
 
+/* 1. Burger Icon oben rechts fixiert */
+#menu-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1001;
+}
+
+header {
+    text-align: center;
+    padding-bottom: 25px;
+}
+
+#app-title {
+    font-size: 1.8rem;
+    color: var(--color-accent);
+    margin-bottom: 10px;
+}
+
+#controls-container {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 2. Side-by-Side Layout: EQ links, Sampler rechts */
+#main-layout {
+    display: flex;
+    flex-direction: row;
+    gap: 40px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+#equalizer-container {
+    width: 250px;
+    flex-shrink: 0;
+    /* Keine Box-Hintergründe wie gewünscht */
+}
+
+#sampler-main {
+    width: 600px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 3. Dropdown Styling */
+select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--dark-border);
+    background-color: var(--dark-surface);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* 4. Waveform Editor Box (Die einzige gewünschte Box) */
+.waveform-box {
+    background-color: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+/* FIX: Übereinanderstapeln von Visualizer, Waveform und Overlay */
+#waveform-wrapper {
+    position: relative;
+    width: 600px;
+    height: 100px;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#waveform-wrapper canvas {
+    position: absolute; /* Erzwingt das Übereinanderliegen */
+    top: 0;
+    left: 0;
+    width: 600px;
+    height: 100px;
+}
+
+#freqCanvasEditor { z-index: 1; opacity: 0.5; } /* Visualizer hinten */
+#myCanvas { z-index: 2; }                       /* Waveform Mitte */
+#myCanvasOverlay { z-index: 3; }                /* Trim-Bars vorne zum Schneiden */
+
+/* 5. Sampler Pads Grid & Styling */
+#buttonContainer {
+    width: 600px; 
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.sample-pad {
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--color-pad-default);
+    color: var(--text-primary);
+    font-weight: bold;
+    box-shadow: 0 4px 0 #000;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.empty-pad {
+    opacity: 0.3; /* Leere Pads immer anzeigen, aber blasser */
+}
+
+.sample-pad.playing {
+    background-color: var(--color-pad-playing) !important;
+    color: #000;
+}
+
+/* Ladebalken auf den Pads */
+.prog {
+    position: absolute;
+    left: 10%;
+    bottom: 8px;
+    height: 4px;
+    width: 80%;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.bar {
+    height: 100%;
+    width: 0;
+    background-color: var(--color-accent);
+    transition: width 0.3s ease;
+}
+
+/* 6. Recorder & MIDI (Flach ohne Boxen) */
+.recorder-section, .midi-section {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.recorder-row, .midi-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+h2 {
+    font-size: 1rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+/* 7. Equalizer Controls */
+#freqCanvasMaster {
+    width: 100%;
+    background: #000;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.eq-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+}
+
+.master-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--dark-border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Sidebar & Buttons */
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: -320px;
+    width: 300px;
+    height: 100%;
+    background: #1f2937;
+    transition: right 0.3s ease;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.sidebar.open {
+    right: 0;
+}
+
+.btn {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--dark-border);
+    background-color: var(--dark-surface);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.btn.primary {
+    background-color: var(--color-accent);
+    color: #000;
+}

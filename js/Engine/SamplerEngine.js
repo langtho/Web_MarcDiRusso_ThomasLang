@@ -1,172 +1,213 @@
 // SamplerEngine.js
-
-// Import the playback utility function (assumed to handle connecting buffer to speaker)
-import { playSound } from './soundutils.js';
-// Import the class that holds sample metadata (name, URL, buffer)
 import { SoundSample } from './SoundSample.js';
 
-// The main class for audio processing and sample management
 export default class SamplerEngine {
     
-    // Constructor initializes the AudioContext and event handlers
-    constructor(opts = {}) {
-        // Create or use an existing AudioContext
-        this.ctx = opts.audioContext || new AudioContext();
-        this.samples = []; // Array to hold SoundSample objects
-        this.currentSample = null; // The currently selected sample for editing/viewing
+    // Constructor uses the backend for audio operations
+    constructor(backend, opts = {}) {
+        this.backend = backend; 
+        this.samples = []; 
+        this.currentSample = null;
 
-        this.recorder =null;
-        this.lastBlob =null;
-        this.lastRecordedBuffer =null;
-        this.RecordingStream =null;
+        this.recorder = null;
+        this.lastBlob = null;
+        this.lastRecordedBuffer = null;
+        this.RecordingStream = null;
         this.isRecording = false;
 
-        // Define placeholder functions for external callbacks (used by SamplerGUI)
+        // GUI and state callbacks
         this.onSampleReady = opts.onSampleReady || (() => {});
         this.onSampleError = opts.onSampleError || (() => {});
         this.onSampleSelect = opts.onSampleSelect || (() => {});
         this.onProgress = opts.onProgress || (() => {});
-        this.onStatus= opts.onStatus || (() => {});
-        this.onError= opts.onError || (() => {});
+        this.onStatus = opts.onStatus || (() => {});
+        this.onError = opts.onError || (() => {});
 
-        //Recording callbacks
+
         this.onRecordingStart = opts.onRecordingStart || (() => {});
         this.onRecordingStop = opts.onRecordingStop || (() => {});
         this.onNewSampleReady = opts.onNewSampleReady || (() => {});
+        this.initMasterEffects();
     }
 
-    // Ensures the AudioContext is running (required by browser policies)
+    // Uses the backend to ensure the audio context is active
     async ensureAudioContextRunning() {
-        if (this.ctx.state === 'suspended') {
-            await this.ctx.resume(); // Resume if suspended
-        }
-        return this.ctx;
+        return await this.backend.ensureRunning();
     }
 
-
-    // Sets up the list of samples to be loaded based on file data
+    // Creates sample objects from file data
     initializeSamples(fileData) {
-        this.samples = []; // Clear old samples
+        this.samples = []; 
         this.currentSample = null;
         
-        // Create a SoundSample instance for each file
         fileData.forEach(file => {
-            if (!file || !file.fullURL) {
-                console.warn("Skipping sample due to incomplete data:", file);
-                return;
-            }
-            const sampleName = file.name // Use the provided name
-            const sample = new SoundSample(sampleName, file.fullURL);
+            if (!file || !file.fullURL) return;
+            const sample = new SoundSample(file.name, file.fullURL);
             this.samples.push(sample);
         });
     }
 
-    
-    // Asynchronously loads, monitors progress, and decodes an audio file from a URL
-    async loadAndDecodeSoundStream(url, ctx, sample, onProgress, onStatus, onError) {
-    onStatus(sample, { phase: "connect", message: "Connecting…" });
+    // Streams and decodes audio via the backend
+    async loadAndDecodeSoundStream(url, sample) {
+        this.onStatus(sample, { phase: "connect", message: "Connecting…" });
 
-    try {
-        const response = await fetch(url);
-        // Check for non-200 status codes or missing body
-        if (!response.ok || !response.body) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        try {
+            const response = await fetch(url);
+            if (!response.ok || !response.body) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-        // Get total file size from response header, if available
-        const total = Number(response.headers.get("content-length") || 0) || null;
-        
-        const reader = response.body.getReader(); // Get a reader to handle the stream
-        const chunks = [];
-        let recv = 0; // Bytes received
+            const total = Number(response.headers.get("content-length") || 0) || null;
+            const reader = response.body.getReader();
+            const chunks = [];
+            let recv = 0;
 
-        
-        // Loop to read data chunks until finished
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break; // Exit loop when stream is complete
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                chunks.push(value);
+                recv += value.length;
+                this.onProgress(sample, recv, total);
+            }
+
+            const blob = new Blob(chunks, { type: response.headers.get("content-type") || "application/octet-stream" });
+            const arrayBuffer = await blob.arrayBuffer();
             
-            chunks.push(value);
-            recv += value.length;
-           
-            onProgress(sample, recv, total); // Call callback to update GUI progress bar
+            // Backend handles the specific decoding implementation
+            const soundBuffer = await this.backend.decodeAudioData(arrayBuffer);
+
+            this.onStatus(sample, { phase: "ready", message: "Ready" }); 
+            return soundBuffer;
+
+        } catch (e) {
+            this.onError(sample, e);
+            this.onStatus(sample, { phase: "error", message: String(e.message || e) });
+            return null;
         }
-
-        
-        // Combine chunks into a single binary Blob
-        const blob = new Blob(chunks, { type: response.headers.get("content-type") || "application/octet-stream" });
-        // Decode the raw binary data into a Web Audio Buffer
-        const soundBuffer = await ctx.decodeAudioData(await blob.arrayBuffer());
-
-        onStatus(sample, { phase: "ready", message: "Ready" }); 
-        
-        return soundBuffer;
-
-    } catch (e) {
-        onError(sample, e);
-        onStatus(sample, { phase: "error", message: String(e.message || e) });
-        return null; // Return null on error
     }
-}
 
-
-    // Initiates the loading and decoding process for all samples
+    // Loads all samples in the current kit
     async loadAllSamples() {
-     
-        // Create an array of Promises, one for each sample load operation
         const loadPromises = this.samples.map(sample => {
             if (!sample.url) return Promise.resolve();
             
-            return this.loadAndDecodeSoundStream(
-            sample.url, 
-            this.ctx, 
-            sample, 
-            this.onProgress, // Pass all necessary callbacks
-            this.onStatus,   
-            this.onError     
-        ).then(soundData => {
-            if (soundData) {
-                sample.buffer = soundData; // Store the decoded buffer
-                this.onSampleReady(sample); // Notify GUI the sample is ready
-            }
-        });
+            return this.loadAndDecodeSoundStream(sample.url, sample)
+                .then(soundData => {
+                    if (soundData) {
+                        sample.buffer = soundData;
+                        this.onSampleReady(sample);
+                    }
+                });
         });
 
-        await Promise.all(loadPromises); // Wait for all samples to finish loading
+        await Promise.all(loadPromises);
 
-        // Automatically select the first successfully loaded sample
         if (!this.currentSample) {
             const firstSample = this.samples.find(s => s.buffer);
-            if (firstSample) {
-                this.selectSample(firstSample);
-            }
+            if (firstSample) this.selectSample(firstSample);
         }
     }
 
-    // Triggers playback for a given sample
-    playSample(sample) {
-        // Ensure the sample exists and has a decoded buffer
-        if (!sample || !sample.buffer) return;
-        // Use utility function to handle the playback node creation/connection
-        playSound(this.ctx, sample.buffer, sample.trimStart, sample.trimEnd);
-    }
-
-    // Sets the currently selected sample (for GUI/editor focus)
-    selectSample(sample) {
-        if (this.currentSample === sample) return; // Ignore if already selected
-        
-        this.currentSample = sample;
-        this.onSampleSelect(sample); // Notify GUI of the change
-    }
-
-    // Forces the selection event to fire (useful if local changes happened)
-    forceUpdateCurrentSample() {
-        if (this.currentSample) {
-            this.onSampleSelect(this.currentSample); 
-        }
-    }
+    // Plays a sample using the utility and backend context
+   playSample(sample) {
+    if (!sample || !sample.buffer) return;
+    const ctx = this.backend.ctx;
+    const source = ctx.createBufferSource();
+    source.buffer = sample.buffer;
     
-    // --- Getters ---
+    if (this.masterInput) {
+            source.connect(this.masterInput);
+        } else {
+            source.connect(ctx.destination);
+        }
+        
+        const duration = sample.trimEnd - sample.trimStart;
+        source.start(0, sample.trimStart, duration);
+    }
+
+    // Selects a sample for the UI editor
+    selectSample(sample) {
+        if (this.currentSample === sample) return;
+        this.currentSample = sample;
+        this.onSampleSelect(sample);
+    }
+
+    // Recording logic
+
+    async initrecorder() {
+        if (this.recorder) return true;
+
+        try {
+            this.RecordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.recorder = new MediaRecorder(this.RecordingStream);
+            this.recorder.addEventListener('dataavailable', this.onRecordingReady.bind(this));
+            return true;
+        } catch (e) {
+            this.onError(null, e);
+            return false;
+        }
+    }
+
+    startRecording() {
+        if (!this.recorder || this.recorder.state === 'recording') return;
+        this.lastBlob = null;
+        this.lastRecordedBuffer = null;
+        this.recorder.start();
+        this.isRecording = true;
+        this.onRecordingStart();
+    }
+
+    stopRecording() {
+        if (!this.recorder || this.recorder.state !== 'recording') return;
+        this.recorder.stop();
+        this.isRecording = false;
+        this.onRecordingStop();
+    }
+
+    async onRecordingReady(event) {
+        this.lastBlob = event.data;
+        if (!this.lastBlob || this.lastBlob.size === 0) return;
+
+        this.onStatus(null, { phase: "decoding", message: "Decoding recorded audio…" });
+        
+        try {
+            const arrayBuffer = await this.lastBlob.arrayBuffer();
+            this.lastRecordedBuffer = await this.backend.decodeAudioData(arrayBuffer);
+            this.onStatus(null, { phase: "ready", message: "Recorded audio ready" });
+            this.onNewSampleReady();
+        } catch (e) {
+            this.onError(null, e);
+        }   
+    }
+
+    addRecordedSample(samplerName = "Custom Rec") {
+        if (!this.lastRecordedBuffer) return false;
+
+        const newSample = new SoundSample(samplerName, null);
+        newSample.buffer = this.lastRecordedBuffer;
+        newSample.trimStart = 0;
+        newSample.trimEnd = this.lastRecordedBuffer.duration;
+
+        const padIndex = this.samples.findIndex(s => !s.buffer);
+        const MAX_PADS = 16;
+
+        if (padIndex !== -1) {
+            this.samples[padIndex] = newSample;
+        } else if (this.samples.length < MAX_PADS) {
+            this.samples.push(newSample);
+        } else {
+            const targetIndex = this.currentSample ? this.samples.findIndex(s => s === this.currentSample) : this.samples.length - 1;
+            this.samples[targetIndex] = newSample;
+        }
+
+        this.onSampleReady(newSample);
+        this.selectSample(newSample);
+        return true;
+    }
+
+  
+
     getCurrentSample() {
         return this.currentSample;
     }
@@ -175,92 +216,37 @@ export default class SamplerEngine {
         return this.samples;
     }
 
-    // New recording methods
+    initMasterEffects() {
+    const ctx = this.backend.ctx;
+    this.filters = [];
+    
+    [60, 170, 350, 1000, 3500, 10000].forEach((freq) => {
+        const eq = ctx.createBiquadFilter();
+        eq.frequency.value = freq;
+        eq.type = "peaking"; //
+        eq.gain.value = 0;
+        this.filters.push(eq);
+    });
 
-    async initrecorder(){
-        if(this.recorder) return true;
-
-        try{
-            this.RecordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.recorder = new MediaRecorder(this.RecordingStream);
-            
-            this.recorder.addEventListener('dataavailable', this.onRecordingReady.bind(this));
-            console.log("Recorder initialized");
-            return true;
-        }catch(e){
-            this.onError(null, e);
-            this.onError(null, new Error("Access denied"));
-           return false;
-        }
+   
+    for(let i = 0; i < this.filters.length - 1; i++) {
+        this.filters[i].connect(this.filters[i+1]);
     }
 
-    startRecording(){
-        if(!this.recorder||this.recorder.state === 'recording') return;
-        this.lastBlob = null;
-        this.lastRecordedBuffer = null;
-        this.recorder.start();
-        this.isRecording = true;
-        this.onRecordingStart();
-        console.log("Recording started");
-    }
-
-    stopRecording(){
-        if(!this.recorder||this.recorder.state !== 'recording') return;
-        this.recorder.stop();
-        this.isRecording = false;
-        this.onRecordingStop();
-        console.log("Recording stopped");
-    }
-
-    async onRecordingReady(event){
-        this.lastBlob = event.data;
-        if(!this.lastBlob||this.lastBlob.size === 0) {
-            console.warn("No data recorded");
-            return;
-        }
-        this.onStatus(null, { phase: "decoding", message: "Decoding recorded audio…" });
-        
-        try{
-            const arrayBuffer = await this.lastBlob.arrayBuffer();
-            const decoded = await this.ctx.decodeAudioData(arrayBuffer);
-            this.lastRecordedBuffer = decoded;
-            this.onStatus(null, { phase: "ready", message: "Recorded audio ready" });
-            this.onNewSampleReady();
-            console.log("Recording ready");
-        }catch(e){
-            this.onError(null, e);
-            this.onStatus(null, { phase: "error", message: String(e.message || e) });
-        }   
-    }
-
-    playRecordedSample(){
-        if(!this.lastRecordedBuffer) return;
-        playSound(this.ctx, this.lastRecordedBuffer,0,this.lastRecordedBuffer.duration);
-    }
-
-    addRecordedSample(samplerName="Custom Rec"){
-        if(!this.lastRecordedBuffer){
-            this.onError(null, new Error("No recorded sample available"));
-            return false;
-        }
-
-        const newSample = new SoundSample(samplerName, null);
-        newSample.buffer = this.lastRecordedBuffer;
-        newSample.trimStart =0;
-        newSample.trimEnd = this.lastRecordedBuffer.duration;
-        const padIndex = this.samples.findIndex(s=>!s.buffer);
-        const MAX_PADS =16;
-
-        if(padIndex !== -1){
-            this.samples[padIndex] = newSample;
-        }else if(this.samples.length < MAX_PADS){
-            this.samples.push(newSample);
-        }else{
-            const targetIndex = this.currentSample ? this.samples.findIndex(s=>s===this.currentSample) : this.samples.length -1;
-            this.samples[targetIndex] = newSample;
-        }
-        this.onSampleReady(newSample);
-        this.selectSample(newSample);
-        return true;
-    }
+    // 3. Master Gain & Panner
+    this.masterGain = ctx.createGain();
+    this.masterGain.gain.value = 1;
+    this.stereoPanner = ctx.createStereoPanner();
+    
+    // 4. Analyser for Vizualization
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 512; //
+    
+    this.filters[this.filters.length - 1].connect(this.masterGain);
+    this.masterGain.connect(this.stereoPanner);
+    this.stereoPanner.connect(this.analyser);
+    this.analyser.connect(ctx.destination);
+    
+    this.masterInput = this.filters[0];
+}
 }
