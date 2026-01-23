@@ -1,0 +1,34 @@
+
+<form #padForm="ngForm" (ngSubmit)="onAdd(); padForm.resetForm({})">
+  <mat-form-field>
+    <mat-label>Nom du pad</mat-label>
+    <input matInput [(ngModel)]="name" name="name" required>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Catégorie</mat-label>
+    <mat-select [(ngModel)]="categoryKey" name="categoryKey">
+      <mat-option value="">Aucune</mat-option>
+      @for (cat of categories; track cat) {
+        <mat-option [value]="cat">{{ labelForKey(cat) }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>URL du sample</mat-label>
+    <input matInput [(ngModel)]="url" name="url" required>
+  </mat-form-field>
+
+  <div class="file-row">
+    <input #fileInput type="file" accept="audio/*" hidden (change)="onFileSelected($event)">
+    <button matButton="outlined" type="button" (click)="fileInput.click()">
+      Choisir un fichier audio
+    </button>
+    @if (selectedFileName) {
+      <span class="file-name">{{ selectedFileName }}</span>
+    }
+  </div>
+
+  <button mat-raised-button color="primary" type="submit">Ajouter</button>
+</form>

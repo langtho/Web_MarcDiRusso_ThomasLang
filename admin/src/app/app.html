@@ -1,0 +1,20 @@
+<div class="container">
+  <h1>
+    <nav>
+      <a routerLink="/home">{{ titre }}</a>
+    </nav>
+  </h1>
+
+  <div style="display:flex; gap:12px; align-items:center;">
+    <a routerLink="/home">
+      <button matButton="outlined">Catégories</button>
+    </a>
+    <a routerLink="/add">
+      <button matButton="outlined">Ajouter</button>
+    </a>
+  </div>
+</div>
+
+<mat-divider></mat-divider>
+
+<router-outlet></router-outlet>

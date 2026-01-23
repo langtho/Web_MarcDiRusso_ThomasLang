@@ -44,6 +44,9 @@ const upload = multer({
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
+// Front-end sampler (project root): contains index.html, css/, js/
+const FRONTEND_DIR = path.resolve(__dirname, "..", "..");
+
 // PUBLIC_DIR: env var wins, else ../public (absolute path)
 export const PUBLIC_DIR = process.env.PUBLIC_DIR
   ? path.resolve(process.env.PUBLIC_DIR)
@@ -62,8 +65,17 @@ export const DATA_DIR = process.env.DATA_DIR
 // will be accessible at http://localhost:3000/presets/Basic%20Kit/kick.wav
 // The file PUBLIC_DIR/index.html will be served at http://localhost:3000/ or 
 // http://localhost:3000/index.html
-// app.use should use a path that works on unix and windows
-app.use(express.static(PUBLIC_DIR));
+// Serve the sampler UI from the project root (the file the user wants to run).
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(FRONTEND_DIR, "index.html"));
+});
+app.use("/css", express.static(path.join(FRONTEND_DIR, "css")));
+app.use("/js", express.static(path.join(FRONTEND_DIR, "js")));
+
+// Keep serving server/public for any other static assets, but don't let it hijack "/".
+app.use(express.static(PUBLIC_DIR, { index: false }));
+// Serve /presets from DATA_DIR (so PUBLIC_DIR/DATA_DIR overrides still work)
+app.use("/presets", express.static(DATA_DIR));
 
 // Ensure data dir exists at startup (best-effort)
 await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => {});
@@ -75,6 +87,48 @@ await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => {});
 
 // Simple health check endpoint, this is generally the first endpoint to test
 app.get("/api/health", (_req, res) => res.json({ ok: true, now: new Date().toISOString() }));
+
+// --- Compatibility endpoints for the Angular admin (AudioSampler/admin) ---
+// The admin expects:
+// - GET /api/presets/index -> [{ key, preset }]
+// - POST /api/presets/:key/samples (body {name,url}) -> updated preset
+// - DELETE /api/presets/:key/samples (body {name}) -> updated preset
+
+const PRESET_KEY_RE = /^[a-z0-9-]+$/i;
+
+function assertValidKey(key) {
+  if (!PRESET_KEY_RE.test(String(key))) {
+    const err = new Error("Invalid preset key");
+    err.status = 400;
+    throw err;
+  }
+}
+
+async function readPresetFileByKey(key) {
+  assertValidKey(key);
+  const filePath = path.join(DATA_DIR, `${key}.json`);
+  const preset = await readJSON(filePath);
+  return { filePath, preset };
+}
+
+function normalizeSampleUrlForPreset(url, key) {
+  const trimmed = String(url ?? "").trim();
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+
+  // If the URL comes from Angular like /presets/<key>/file.wav, normalize to ./<key>/file.wav
+  const m = trimmed.match(/\/presets\/([^/]+)\/(.+)$/);
+  if (m) {
+    return `./${m[1]}/${m[2]}`;
+  }
+
+  if (trimmed.startsWith("./")) return trimmed;
+
+  const relative = trimmed.replace(/^\//, "");
+  if (relative.includes("/")) return `./${relative}`;
+  return `./${key}/${relative}`;
+}
 
 // GET list/search
 app.get("/api/presets", async (req, res, next) => {
@@ -114,6 +168,70 @@ app.get("/api/presets", async (req, res, next) => {
     // Return the filtered list. the.json method sets the Content-Type header and stringifies the object
     res.json(items);
   } catch (e) { next(e); }
+});
+
+// Index with keys (filename without .json) for the Angular admin.
+app.get("/api/presets/index", async (_req, res, next) => {
+  try {
+    const files = await listPresetFiles();
+    const results = await Promise.all(
+      files
+        .filter((f) => f.endsWith(".json"))
+        .map(async (file) => {
+          const key = file.replace(/\.json$/i, "");
+          const preset = await readJSON(path.join(DATA_DIR, file));
+          return { key, preset };
+        })
+    );
+    res.json(results);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Add a sample entry to a preset (does not upload audio; see /api/upload/:folder for that).
+app.post("/api/presets/:key/samples", async (req, res, next) => {
+  try {
+    const key = String(req.params.key ?? "").trim();
+    const name = String(req.body?.name ?? "").trim();
+    const url = String(req.body?.url ?? "").trim();
+    if (!name || !url) return res.status(400).json({ error: "Missing name or url" });
+    if (url.startsWith("blob:")) return res.status(400).json({ error: "blob: URLs cannot be stored in presets." });
+
+    const { filePath, preset } = await readPresetFileByKey(key);
+    const nextPreset = { ...preset };
+    const samples = Array.isArray(nextPreset.samples) ? [...nextPreset.samples] : [];
+    samples.push({ url: normalizeSampleUrlForPreset(url, key), name });
+    nextPreset.samples = samples;
+    nextPreset.updatedAt = new Date().toISOString();
+
+    await writeJSON(filePath, nextPreset);
+    res.json(nextPreset);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Delete a sample entry from a preset by sample name.
+app.delete("/api/presets/:key/samples", async (req, res, next) => {
+  try {
+    const key = String(req.params.key ?? "").trim();
+    const name = String(req.body?.name ?? "").trim();
+    if (!name) return res.status(400).json({ error: "Missing name" });
+
+    const { filePath, preset } = await readPresetFileByKey(key);
+    const nextPreset = { ...preset };
+    const samples = Array.isArray(nextPreset.samples) ? [...nextPreset.samples] : [];
+    const before = samples.length;
+    nextPreset.samples = samples.filter((s) => String(s?.name ?? "").trim() !== name);
+    if (nextPreset.samples.length === before) return res.status(404).json({ error: "Sample not found" });
+    nextPreset.updatedAt = new Date().toISOString();
+
+    await writeJSON(filePath, nextPreset);
+    res.json(nextPreset);
+  } catch (e) {
+    next(e);
+  }
 });
 
 // GET one preset by name or slug. slug means a URL-friendly version of the name

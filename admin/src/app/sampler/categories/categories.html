@@ -1,0 +1,13 @@
+<h1>Catégories</h1>
+
+<mat-divider></mat-divider>
+
+<mat-list>
+  @for (cat of (categories$ | async); track cat) {
+    <mat-list-item>
+      <a [routerLink]="['/category', cat]" style="font-weight:600;">
+        {{ labelForKey(cat) }}
+      </a>
+    </mat-list-item>
+  }
+</mat-list>

@@ -2,8 +2,9 @@
 import WaveformEditor from './WaveformEditor.js';
 
 // Constants for API access and audio file path
-const API_URL = 'http://localhost:3000/api/presets';
-const AUDIO_BASE_PATH = 'http://localhost:3000/presets/';
+// Use current origin to avoid hard-coding ports and to properly encode URLs.
+const API_URL = new URL('/api/presets', window.location.origin).toString();
+const AUDIO_BASE_PATH = new URL('/presets/', window.location.origin).toString();
 // Array to store all fetched preset data
 let allPresetsData = [];
 
@@ -311,8 +312,9 @@ export default class SamplerGUI {
 
     // Convert relative file paths to full URLs
     const sampleData = files.map(file => {
-        const relativeURL = file.url;
-        const fullURL = `${AUDIO_BASE_PATH}${relativeURL}`;
+        const raw = String(file?.url ?? '').trim();
+        const relative = raw.replace(/^\.\//, '').replace(/^\//, '');
+        const fullURL = new URL(relative, AUDIO_BASE_PATH).toString();
         return {
             name: file.name,
             fullURL: fullURL
