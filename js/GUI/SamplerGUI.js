@@ -452,13 +452,10 @@ async handlePresetSelection(samplerEngine) {
         if (this.$appTitle) this.$appTitle.textContent = `Beatpad — Kit: ${selectedPreset.name}`;
 
         // Build absolute base URL for the constructor
-        const absoluteBase = new URL('/presets/', window.location.origin).toString();
+        const absoluteBase = new URL(this.config.audioBasePath, window.location.origin).toString();
 
         const sampleData = selectedPreset.samples.map(file => {
-            // Remove leading dot/slash for clean path
             const cleanPath = file.url.replace(/^\.\//, '');
-            
-            // This now has a valid absolute base URL
             const fullURL = new URL(cleanPath, absoluteBase).toString();
 
             return {
