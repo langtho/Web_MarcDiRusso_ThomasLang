@@ -444,19 +444,32 @@ async handlePadDrop(e, index, button) {
     }
 
     async handlePresetSelection(samplerEngine) {
-        const selectedIndex = this.$presetSelect.value;
-        if (selectedIndex === '' || !allPresetsData[selectedIndex]) return;
-        const selectedPreset = allPresetsData[selectedIndex];
-        this.currentKit = selectedPreset.name;
-        if (this.$appTitle) this.$appTitle.textContent = `Beatpad — Kit: ${selectedPreset.name}`;
-        const sampleData = selectedPreset.samples.map(file => ({
+    const selectedIndex = this.$presetSelect.value;
+    if (selectedIndex === '' || !allPresetsData[selectedIndex]) return;
+    
+    const selectedPreset = allPresetsData[selectedIndex];
+    this.currentKit = selectedPreset.name;
+    
+    if (this.$appTitle) this.$appTitle.textContent = `Beatpad — Kit: ${selectedPreset.name}`;
+    
+    const sampleData = selectedPreset.samples.map(file => {
+        // Clean the path by removing leading './'
+        const cleanPath = file.url.replace(/^\.\//, '');
+        
+        // Use window.location.origin to build a valid absolute URL
+        // This prevents the 'Invalid base URL' error
+        const fullURL = `${window.location.origin}/presets/${cleanPath}`;
+        
+        return {
             name: file.name,
-            fullURL: new URL(file.url.replace(/^\.\//, ''), this.config.audioBasePath).toString()
-        }));
-        samplerEngine.initializeSamples(sampleData);
-        this.renderSampleButtons(samplerEngine.getSamples());
-        await samplerEngine.loadAllSamples();
-    }
+            fullURL: fullURL
+        };
+    });
+
+    samplerEngine.initializeSamples(sampleData);
+    this.renderSampleButtons(samplerEngine.getSamples());
+    await samplerEngine.loadAllSamples();
+}
 
     setupKeyboardListeners() {
         const physicalKeyMap = {
