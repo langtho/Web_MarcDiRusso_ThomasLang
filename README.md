@@ -7,5 +7,5 @@ You find all the JavaScript code in the **js** folder The code is seperated in t
 Else you'll find the css file in the **css** folder
 
 
-##Lancé d'abord le Sampler : cd server && npm run start
-##Puis lancé dans un autre terminal (pour Angular) : cd admin && npm start
+## Lancé d'abord le Sampler : cd server && npm run start
+## Puis lancé dans un autre terminal (pour Angular) : cd admin && npm start
