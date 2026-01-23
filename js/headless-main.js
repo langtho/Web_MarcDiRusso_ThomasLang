@@ -27,8 +27,8 @@ async function initHeadless() {
 
     // 3. Define sample data manually (since there is no GUI dropdown)
     const testSamples = [
-        { name: "Kick", fullURL: "http://localhost:3000/presets/808/Clap 808.wav" },
-        { name: "Snare", fullURL: "http://localhost:3000/presets/hip-hop/Clap HipHop.wav" }
+        { name: "Kick", fullURL: "/presets/808/Clap 808.wav" },
+        { name: "Snare", fullURL: "/presets/hip-hop/Clap HipHop.wav" }
     ];
 
     // 4. Load the samples into the engine

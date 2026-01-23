@@ -88,8 +88,8 @@ class SamplerBeatpad extends HTMLElement {
 
     async initSampler() {
         const config = {
-            apiUrl: 'http://localhost:3000/api/presets',
-            audioBasePath: 'http://localhost:3000/presets/',
+            apiUrl: '/api/presets',
+            audioBasePath: '/presets/',
             fsApiKey: "SF19OkX8syIplOcKsjGQggpGHoXr0rg0E9CteBZG"
         };
 
