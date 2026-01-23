@@ -442,7 +442,7 @@ async handlePadDrop(e, index, button) {
         }
     }
 
- async handlePresetSelection(samplerEngine) {
+async handlePresetSelection(samplerEngine) {
         const selectedIndex = this.$presetSelect.value;
         if (selectedIndex === '' || !allPresetsData[selectedIndex]) return;
         
@@ -451,13 +451,14 @@ async handlePadDrop(e, index, button) {
         
         if (this.$appTitle) this.$appTitle.textContent = `Beatpad — Kit: ${selectedPreset.name}`;
 
+        // Build absolute base URL for the constructor
+        const absoluteBase = new URL('/presets/', window.location.origin).toString();
+
         const sampleData = selectedPreset.samples.map(file => {
-            // Remove leading ./ if present
+            // Remove leading dot/slash for clean path
             const cleanPath = file.url.replace(/^\.\//, '');
             
-            // Construct absolute URL using the current browser origin
-            // This fixes the 'Invalid base URL' error
-            const absoluteBase = new URL('/presets/', window.location.origin).toString();
+            // This now has a valid absolute base URL
             const fullURL = new URL(cleanPath, absoluteBase).toString();
 
             return {
