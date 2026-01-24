@@ -47,12 +47,43 @@ export class WebAudioBackend extends AudioBackend {
     }
 }
 
-// Headless/Node.js stub implementation
+// AudioBackend.js
+
 export class HeadlessAudioBackend extends AudioBackend {
     constructor() {
         super();
         this.sampleRate = 44100;
-        this.buffers = new Map();
+        
+        // Sicherer Check für OfflineAudioContext
+        const ContextClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        
+        if (ContextClass) {
+            // Wir erstellen einen minimalen Kontext (2 Kanäle, 1 Sample lang)
+            this.ctx = new ContextClass(2, 1, this.sampleRate);
+        } else {
+            // Fallback für Umgebungen ohne Web Audio Support
+            console.warn("HeadlessAudioBackend: Web Audio API not found. Using Mock Context.");
+            this.ctx = this._createMockContext();
+        }
+    }
+
+    _createMockContext() {
+        return {
+            createBiquadFilter: () => ({
+                frequency: { value: 0 },
+                type: "",
+                gain: { value: 0 },
+                connect: () => {}
+            }),
+            destination: { connect: () => {} },
+            decodeAudioData: async (buf) => ({
+                duration: 1,
+                length: 44100,
+                numberOfChannels: 2,
+                sampleRate: 44100,
+                getChannelData: () => new Float32Array(100)
+            })
+        };
     }
 
     async ensureRunning() {
@@ -60,22 +91,25 @@ export class HeadlessAudioBackend extends AudioBackend {
     }
 
     async decodeAudioData(arrayBuffer) {
-        const bufferId = Math.random().toString(36);
-        this.buffers.set(bufferId, arrayBuffer);
-        return {
-            duration: arrayBuffer.byteLength / (this.sampleRate * 2),
-            length: arrayBuffer.byteLength,
-            numberOfChannels: 2,
-            sampleRate: this.sampleRate,
-            __headlessId: bufferId
-        };
+        // Nutze den echten Kontext, wenn vorhanden, sonst den Mock
+        try {
+            return await this.ctx.decodeAudioData(arrayBuffer);
+        } catch (e) {
+            return this._createMockContext().decodeAudioData();
+        }
     }
 
     createBufferSource() {
-        return { connect: () => {}, start: () => {}, stop: () => {} };
+        return { 
+            connect: () => {}, 
+            start: () => {}, 
+            stop: () => {},
+            buffer: null,
+            playbackRate: { value: 1 }
+        };
     }
 
     getDestination() {
-        return { connect: () => {} };
+        return this.ctx.destination || { connect: () => {} };
     }
 }

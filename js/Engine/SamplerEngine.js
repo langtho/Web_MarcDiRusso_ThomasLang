@@ -27,7 +27,9 @@ export default class SamplerEngine {
         this.onRecordingStart = opts.onRecordingStart || (() => {});
         this.onRecordingStop = opts.onRecordingStop || (() => {});
         this.onNewSampleReady = opts.onNewSampleReady || (() => {});
+        if (this.backend && this.backend.ctx) {
         this.initMasterEffects();
+        }
     }
 
     // Uses the backend to ensure the audio context is active
