@@ -8,7 +8,7 @@
   "samples": [
     {
       "name": "test 3",
-      "url": "/Test 123/test_3.wav"
+      "url": "/Test_123/test_3.wav"
     },
     {
       "name": "Hallo - wie geht's -german language.mp3",
@@ -20,7 +20,7 @@
     },
     {
       "name": "click clack (cstm)",
-      "url": "/Test 123/click_clack_(cstm).wav"
+      "url": "/Test_123/click_clack_(cstm).wav"
     }
   ]
 }
