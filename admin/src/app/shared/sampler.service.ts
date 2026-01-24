@@ -20,7 +20,7 @@ type PresetIndexEntry = {
   providedIn: 'root',
 })
 export class SamplerService {
-  private readonly audioSamplerBaseUrl = 'http://localhost:3000';
+  private readonly audioSamplerBaseUrl = window.location.origin;
   private readonly apiBaseUrl = `${this.audioSamplerBaseUrl}/api`;
 
   private readonly storageKey = 'audioSampler.pads.v1';
@@ -194,6 +194,9 @@ export class SamplerService {
 
     // preset: "./808/Kick.wav" -> "http://localhost:3000/presets/808/Kick.wav"
     const relative = trimmed.replace(/^\.\//, '').replace(/^\//, '');
+    if (relative.startsWith('presets/')) {
+    return `${this.audioSamplerBaseUrl}/${relative}`;
+  }
     return `${this.audioSamplerBaseUrl}/presets/${relative}`;
   }
 
