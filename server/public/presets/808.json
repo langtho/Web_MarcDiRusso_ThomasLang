@@ -64,7 +64,7 @@
       "name": "cowbell"
     },
     {
-      "url": "http://localhost:3000/presets/808/Kick%20808X.wav",
+      "url": "./808/Kick%20808X.wav",
       "name": "kick808x"
     }
   ],

@@ -8,23 +8,23 @@
   "samples": [
     {
       "name": "kick",
-      "url": "./presets/basic-kit/kick.wav"
+      "url": "./basic-kit/kick.wav"
     },
     {
       "name": "Haleluja",
-      "url": "./presets/test345/Haleluja.wav"
+      "url": "./test345/Haleluja.wav"
     },
     {
       "name": "hihat",
-      "url": "./presets/basic-kit/hihat.wav"
+      "url": "./basic-kit/hihat.wav"
     },
     {
       "name": "tom1",
-      "url": "./presets/basic-kit/tom1.wav"
+      "url": "./basic-kit/tom1.wav"
     },
     {
       "name": "tom2",
-      "url": "./presets/basic-kit/tom2.wav"
+      "url": "./basic-kit/tom2.wav"
     },
     {
       "name": "Juicy Fart",

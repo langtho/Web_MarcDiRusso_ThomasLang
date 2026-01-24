@@ -5,27 +5,27 @@
   "samples": [
     {
       "name": "kick",
-      "url": "./presets/basic-kit/kick.wav"
+      "url": "./basic-kit/kick.wav"
     },
     {
       "name": "snare",
-      "url": "./presets/basic-kit/snare.wav"
+      "url": "./basic-kit/snare.wav"
     },
     {
       "name": "hihat",
-      "url": "./presets/basic-kit/hihat.wav"
+      "url": "./basic-kit/hihat.wav"
     },
     {
       "name": "tom1",
-      "url": "./presets/basic-kit/tom1.wav"
+      "url": "./basic-kit/tom1.wav"
     },
     {
       "name": "tom2",
-      "url": "./presets/basic-kit/tom2.wav"
+      "url": "./basic-kit/tom2.wav"
     },
     {
       "name": "tom3",
-      "url": "./presets/basic-kit/tom3.wav"
+      "url": "./basic-kit/tom3.wav"
     },
     {
       "name": "wolf-privet.wav",
