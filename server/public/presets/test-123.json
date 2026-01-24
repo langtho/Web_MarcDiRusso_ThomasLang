@@ -1,0 +1,26 @@
+{
+  "id": "14e6824e-ce12-494e-81dc-a6b78cf08097",
+  "slug": "test-123",
+  "updatedAt": "2026-01-23T12:32:36.789Z",
+  "name": "Test 123",
+  "type": "custom",
+  "isFactoryPresets": false,
+  "samples": [
+    {
+      "name": "test 3",
+      "url": "/presets/Test 123/test_3.wav"
+    },
+    {
+      "name": "Hallo - wie geht's -german language.mp3",
+      "url": "https://cdn.freesound.org/previews/424/424223_3442171-hq.mp3"
+    },
+    {
+      "name": "abdi ich kan nicht mehr",
+      "url": "https://cdn.freesound.org/previews/583/583391_13160481-hq.mp3"
+    },
+    {
+      "name": "click clack (cstm)",
+      "url": "/presets/Test 123/click_clack_(cstm).wav"
+    }
+  ]
+}

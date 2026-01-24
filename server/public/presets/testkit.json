@@ -1,0 +1,26 @@
+{
+  "id": "c27a2ebf-6c9c-4e08-82de-a86488f7f2c3",
+  "slug": "testkit",
+  "updatedAt": "2026-01-23T14:08:39.437Z",
+  "name": "Testkit",
+  "type": "custom",
+  "isFactoryPresets": false,
+  "samples": [
+    {
+      "name": "free guitar acs 2.wav",
+      "url": "https://cdn.freesound.org/previews/163/163469_215874-hq.mp3"
+    },
+    {
+      "name": "paget_ludovic_2014_2015_pompiers_fondu.wav",
+      "url": "https://cdn.freesound.org/previews/253/253690_4684377-hq.mp3"
+    },
+    {
+      "name": "Alarm firetruck France (sirène pompiers)",
+      "url": "https://cdn.freesound.org/previews/733/733771_11043124-hq.mp3"
+    },
+    {
+      "name": "SunixMuz - Follow the road (Opening, trailer, epic music, Free CCBY)",
+      "url": "https://cdn.freesound.org/previews/767/767844_7338395-hq.mp3"
+    }
+  ]
+}

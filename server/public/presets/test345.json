@@ -1,5 +1,8 @@
 {
-  "name": "Basic Kit",
+  "id": "a417127b-d142-4f49-a068-6ad86dade0fb",
+  "slug": "test345",
+  "updatedAt": "2026-01-23T12:38:26.815Z",
+  "name": "test345",
   "type": "custom",
   "isFactoryPresets": false,
   "samples": [
@@ -8,8 +11,8 @@
       "url": "./presets/basic-kit/kick.wav"
     },
     {
-      "name": "snare",
-      "url": "./presets/basic-kit/snare.wav"
+      "name": "Haleluja",
+      "url": "./presets/test345/Haleluja.wav"
     },
     {
       "name": "hihat",
@@ -24,14 +27,8 @@
       "url": "./presets/basic-kit/tom2.wav"
     },
     {
-      "name": "tom3",
-      "url": "./presets/basic-kit/tom3.wav"
-    },
-    {
-      "name": "wolf-privet.wav",
-      "url": "https://cdn.freesound.org/previews/575/575695_7495013-hq.mp3"
+      "name": "Juicy Fart",
+      "url": "https://cdn.freesound.org/previews/419/419107_6029415-hq.mp3"
     }
-  ],
-  "slug": "basic-kit",
-  "updatedAt": "2026-01-23T13:48:12.641Z"
+  ]
 }
