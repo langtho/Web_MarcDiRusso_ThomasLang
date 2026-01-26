@@ -31,7 +31,13 @@ export class Pads {
 
   constructor(private samplerService: SamplerService, private route: ActivatedRoute) {
     this.categoryKey$ = this.route.paramMap.pipe(map((p) => p.get('key') ?? ''));
-    this.categoryLabel$ = this.categoryKey$.pipe(map((key) => this.labelForKey(key)));
+    this.categoryLabel$ = combineLatest([samplerService.presetIndex$, this.categoryKey$]).pipe(
+      map(([entries, key]) => {
+        if (!key) return '';
+        const entry = (entries ?? []).find((e) => e?.key === key);
+        return String(entry?.preset?.name ?? '').trim() || this.labelForKey(key);
+      }),
+    );
     this.pads$ = combineLatest([samplerService.pads$, this.categoryKey$]).pipe(
       map(([pads, key]) => {
         if (!key) return pads;
@@ -40,8 +46,20 @@ export class Pads {
     );
   }
 
+  onRename(categoryKey: string, currentLabel: string): void {
+    const next = window.prompt('Nouveau nom du preset :', currentLabel);
+    if (!next) return;
+    this.samplerService.renamePreset(categoryKey, next);
+  }
+
   onDelete(pad: SamplerPad): void {
     this.samplerService.deletePad(pad);
+  }
+
+  onRenameSound(pad: SamplerPad): void {
+    const next = window.prompt('Nouveau nom du son :', pad.name);
+    if (!next) return;
+    this.samplerService.renameSound(pad, next);
   }
 
   private extractCategoryKey(url: string): string {

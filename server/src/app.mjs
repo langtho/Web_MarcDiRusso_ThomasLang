@@ -234,6 +234,58 @@ app.delete("/api/presets/:key/samples", async (req, res, next) => {
   }
 });
 
+// Rename a sample entry within a preset (changes only the display name, keeps url unchanged).
+// Body: { oldName, newName }
+app.patch("/api/presets/:key/samples", async (req, res, next) => {
+  try {
+    const key = String(req.params.key ?? "").trim();
+    const oldName = String(req.body?.oldName ?? "").trim();
+    const newName = String(req.body?.newName ?? "").trim();
+    if (!oldName || !newName) return res.status(400).json({ error: "Missing oldName or newName" });
+    if (oldName === newName) return res.status(200).json({ ok: true });
+
+    const { filePath, preset } = await readPresetFileByKey(key);
+    const nextPreset = { ...preset };
+    const samples = Array.isArray(nextPreset.samples) ? [...nextPreset.samples] : [];
+
+    const idx = samples.findIndex((s) => String(s?.name ?? "").trim() === oldName);
+    if (idx < 0) return res.status(404).json({ error: "Sample not found" });
+
+    const exists = samples.some((s, i) => i !== idx && String(s?.name ?? "").trim() === newName);
+    if (exists) return res.status(409).json({ error: "A sample with this name already exists" });
+
+    samples[idx] = { ...samples[idx], name: newName };
+    nextPreset.samples = samples;
+    nextPreset.updatedAt = new Date().toISOString();
+
+    await writeJSON(filePath, nextPreset);
+    res.json(nextPreset);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Rename preset display name without changing its key/filename.
+// This is safe for the Angular admin because category keys and sample URLs depend on the preset key.
+app.patch("/api/presets/:key/meta", async (req, res, next) => {
+  try {
+    const key = String(req.params.key ?? "").trim();
+    const name = String(req.body?.name ?? "").trim();
+    if (!name) return res.status(400).json({ error: "Missing name" });
+
+    const { filePath, preset } = await readPresetFileByKey(key);
+    const nextPreset = { ...preset, name, updatedAt: new Date().toISOString() };
+
+    const errs = validatePreset(nextPreset, { partial: true });
+    if (errs.length) return res.status(400).json({ errors: errs });
+
+    await writeJSON(filePath, nextPreset);
+    res.json(nextPreset);
+  } catch (e) {
+    next(e);
+  }
+});
+
 // GET one preset by name or slug. slug means a URL-friendly version of the name
 app.get("/api/presets/:name", async (req, res, next) => {
   try {

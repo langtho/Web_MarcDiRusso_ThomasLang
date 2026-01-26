@@ -29,6 +29,9 @@ export class SamplerService {
   private readonly padsSubject = new BehaviorSubject<SamplerPad[]>([]);
   readonly pads$ = this.padsSubject.asObservable();
 
+  private readonly presetIndexSubject = new BehaviorSubject<PresetIndexEntry[]>([]);
+  readonly presetIndex$ = this.presetIndexSubject.asObservable();
+
   private initialized = false;
 
   constructor(private http: HttpClient) {
@@ -138,6 +141,50 @@ export class SamplerService {
       });
   }
 
+  renamePreset(categoryKey: string, newName: string): void {
+    const key = (categoryKey ?? '').trim();
+    const name = (newName ?? '').trim();
+    if (!key || !name) return;
+
+    this.http
+      .patch(`${this.apiBaseUrl}/presets/${encodeURIComponent(key)}/meta`, { name })
+      .pipe(switchMap(() => this.loadFromAudioSampler()))
+      .subscribe({
+        next: (pads) => {
+          this.padsSubject.next(pads);
+          this.persist(pads);
+        },
+        error: (err) => {
+          console.error('renamePreset failed', err);
+          window.alert('Impossible de renommer le preset (API en erreur).');
+        },
+      });
+  }
+
+  renameSound(pad: SamplerPad, newName: string): void {
+    const categoryKey = pad.categoryKey?.trim() || this.extractCategoryKey(pad.url);
+    const oldName = pad.name?.trim();
+    const nextName = (newName ?? '').trim();
+    if (!categoryKey || !oldName || !nextName || pad.url.startsWith('blob:')) return;
+
+    this.http
+      .patch(`${this.apiBaseUrl}/presets/${encodeURIComponent(categoryKey)}/samples`, {
+        oldName,
+        newName: nextName,
+      })
+      .pipe(switchMap(() => this.loadFromAudioSampler()))
+      .subscribe({
+        next: (pads) => {
+          this.padsSubject.next(pads);
+          this.persist(pads);
+        },
+        error: (err) => {
+          console.error('renameSound failed', err);
+          window.alert('Impossible de renommer le son (API en erreur).');
+        },
+      });
+  }
+
   private init(): void {
     if (this.initialized) return;
     this.initialized = true;
@@ -166,6 +213,7 @@ export class SamplerService {
   private loadFromAudioSampler(): Observable<SamplerPad[]> {
     return this.http.get<PresetIndexEntry[]>(`${this.apiBaseUrl}/presets/index`).pipe(
       map((entries) => {
+        this.presetIndexSubject.next(entries ?? []);
         const pads: SamplerPad[] = [];
         for (const entry of entries ?? []) {
           const key = entry.key;

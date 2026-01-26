@@ -3,10 +3,10 @@
 <mat-divider></mat-divider>
 
 <mat-list>
-  @for (cat of (categories$ | async); track cat) {
+  @for (cat of (categories$ | async); track cat.key) {
     <mat-list-item>
-      <a [routerLink]="['/category', cat]" style="font-weight:600;">
-        {{ labelForKey(cat) }}
+      <a [routerLink]="['/category', cat.key]" style="font-weight:600;">
+        {{ cat.label }}
       </a>
     </mat-list-item>
   }

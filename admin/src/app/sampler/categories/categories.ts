@@ -6,7 +6,6 @@ import { MatListModule } from '@angular/material/list';
 import { map } from 'rxjs/operators';
 
 import { SamplerService } from '../../shared/sampler.service';
-import { SamplerPad } from '../sampler-pad.model';
 
 @Component({
   selector: 'app-categories',
@@ -19,10 +18,12 @@ export class Categories {
   categories$;
 
   constructor(private samplerService: SamplerService) {
-    this.categories$ = this.samplerService.pads$.pipe(map((pads) => this.computeCategories(pads)));
+    this.categories$ = this.samplerService.presetIndex$.pipe(
+      map((entries) => this.computeCategories(entries)),
+    );
   }
 
-  labelForKey(key: string): string {
+  private labelFallbackForKey(key: string): string {
     const labels: Record<string, string> = {
       '808': '808',
       'basic-kit': 'Basic Kit',
@@ -33,29 +34,30 @@ export class Categories {
     return labels[key] ?? key;
   }
 
-  private computeCategories(pads: SamplerPad[]): string[] {
+  private computeCategories(entries: Array<{ key: string; preset?: { name?: string } }>): Array<{ key: string; label: string }> {
     const preferredOrder = ['808', 'basic-kit', 'electronic', 'hip-hop', 'steveland-vinyl'];
 
-    const fromPads = new Set<string>();
-    for (const pad of pads) {
-      const key = this.extractCategoryKey(pad.url);
-      if (key) fromPads.add(key);
+    const byKey = new Map<string, string>();
+    for (const entry of entries ?? []) {
+      const key = String(entry?.key ?? '').trim();
+      if (!key) continue;
+      const label = String(entry?.preset?.name ?? '').trim() || this.labelFallbackForKey(key);
+      if (!byKey.has(key)) byKey.set(key, label);
     }
 
-    const ordered: string[] = [];
+    const ordered: Array<{ key: string; label: string }> = [];
     for (const key of preferredOrder) {
-      if (fromPads.has(key)) ordered.push(key);
+      if (byKey.has(key)) ordered.push({ key, label: byKey.get(key) ?? this.labelFallbackForKey(key) });
     }
 
-    const rest = Array.from(fromPads)
+    const restKeys = Array.from(byKey.keys())
       .filter((k) => !preferredOrder.includes(k))
       .sort((a, b) => a.localeCompare(b));
 
-    return [...ordered, ...rest];
-  }
+    for (const key of restKeys) {
+      ordered.push({ key, label: byKey.get(key) ?? key });
+    }
 
-  private extractCategoryKey(url: string): string {
-    const match = (url ?? '').match(/\/presets\/([^/]+)\//);
-    return match?.[1] ?? '';
+    return ordered;
   }
 }

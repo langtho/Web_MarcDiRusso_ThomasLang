@@ -1,23 +1,73 @@
 {
   "name": "Steveland Vinyl",
-  "type": "Drumkit",
-  "isFactoryPresets": true,
+  "type": "custom",
+  "isFactoryPresets": false,
   "samples": [
-    { "url": "./steveland-vinyl/Kick_Steveland_1.wav", "name": "kick" },
-    { "url": "./steveland-vinyl/Snare_Steveland_1.wav", "name": "snare1" },
-    { "url": "./steveland-vinyl/Snare_Steveland_2.wav", "name": "snare2" },
-    { "url": "./steveland-vinyl/ClosedHH_Steveland.wav", "name": "closed hihats" },
-    { "url": "./steveland-vinyl/OpenHH_Steveland.wav", "name": "open hihats" },
-    { "url": "./steveland-vinyl/Tom_Steveland_1.wav", "name": "tom1" },
-    { "url": "./steveland-vinyl/Tom_Steveland_2.wav", "name": "tom2" },
-    { "url": "./steveland-vinyl/Tom_Steveland_3.wav", "name": "tom3" },
-    { "url": "./steveland-vinyl/Tom_Steveland_4.wav", "name": "tom4" },
-    { "url": "./steveland-vinyl/Conga_Steveland_1.wav", "name": "conga" },
-    { "url": "./steveland-vinyl/Bass_Steveland_1.wav", "name": "bass1" },
-    { "url": "./steveland-vinyl/Bass_Steveland_2.wav", "name": "bass2" },
-    { "url": "./steveland-vinyl/Rhodes_Steveland_1.wav", "name": "rhodes" },
-    { "url": "./steveland-vinyl/Scratch_Steveland_1.wav", "name": "scratch1" },
-    { "url": "./steveland-vinyl/Scratch_Steveland_2.wav", "name": "scratch2" },
-    { "url": "./steveland-vinyl/Scratch_Steveland_3.wav", "name": "scratch3" }
-  ]
+    {
+      "name": "kick",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Kick_Steveland_1.wav"
+    },
+    {
+      "name": "snare1",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Snare_Steveland_1.wav"
+    },
+    {
+      "name": "snare2",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Snare_Steveland_2.wav"
+    },
+    {
+      "name": "closed hihats",
+      "url": "http://localhost:3000/presets/steveland-vinyl/ClosedHH_Steveland.wav"
+    },
+    {
+      "name": "open hihats",
+      "url": "http://localhost:3000/presets/steveland-vinyl/OpenHH_Steveland.wav"
+    },
+    {
+      "name": "tom1",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Tom_Steveland_1.wav"
+    },
+    {
+      "name": "tom2",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Tom_Steveland_2.wav"
+    },
+    {
+      "name": "tom3",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Tom_Steveland_3.wav"
+    },
+    {
+      "name": "tom4",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Tom_Steveland_4.wav"
+    },
+    {
+      "name": "conga",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Conga_Steveland_1.wav"
+    },
+    {
+      "name": "bass1",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Bass_Steveland_1.wav"
+    },
+    {
+      "name": "bass2",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Bass_Steveland_2.wav"
+    },
+    {
+      "name": "rhodes",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Rhodes_Steveland_1.wav"
+    },
+    {
+      "name": "scratch1",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Scratch_Steveland_1.wav"
+    },
+    {
+      "name": "scratch2",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Scratch_Steveland_2.wav"
+    },
+    {
+      "name": "scratch3",
+      "url": "http://localhost:3000/presets/steveland-vinyl/Scratch_Steveland_3.wav"
+    }
+  ],
+  "slug": "steveland-vinyl",
+  "updatedAt": "2026-01-26T13:05:07.398Z"
 }

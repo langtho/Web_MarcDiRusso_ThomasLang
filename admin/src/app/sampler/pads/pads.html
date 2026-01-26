@@ -1,6 +1,8 @@
-@if (categoryLabel$ | async; as catLabel) {
-  <h1>Sons — {{ catLabel }}</h1>
-  <a routerLink="/home">Retour aux catégories</a>
+@if (categoryKey$ | async; as catKey) {
+  @if (categoryLabel$ | async; as catLabel) {
+    <h1>Sons — {{ catLabel }}</h1>
+    <a routerLink="/home">Retour aux catégories</a>
+  }
 }
 
 <mat-divider></mat-divider>
@@ -26,6 +28,7 @@
       <ng-container matColumnDef="actions">
         <th mat-header-cell *matHeaderCellDef>Actions</th>
         <td mat-cell *matCellDef="let pad" class="actions-cell">
+          <button matButton="elevated" (click)="onRenameSound(pad)">Renommer</button>
           <button matButton="elevated" color="warn" (click)="onDelete(pad)">Supprimer</button>
         </td>
       </ng-container>
