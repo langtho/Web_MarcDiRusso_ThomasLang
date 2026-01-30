@@ -2,7 +2,6 @@
 Sampler: [langthomas.eu/sampler](https://langthomas.eu/sampler)\
 Angular App: [langthomas.eu/angular/home](https://langthomas.eu/angular/home)\
 Headless mode: [langthomas.eu/headless](https://langthomas.eu/headless)\
-API: [langthomas.eu/api](https://langthomas.eu/api)\
 Presets API: [langthomas.eu/api/presets](https://langthomas.eu/api/presets)
 
 ## Features Sampler
