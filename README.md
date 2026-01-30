@@ -1,9 +1,9 @@
 # Web_ThomasLang
-Sampler: [langthomas.eu/sampler]
-Angular App: [langthomas.eu/angular/home]
-Headless mode: [langthomas.eu/headless]
-API: [langthomas.eu/api]
-Presets API: [langthomas.eu/api/presets]
+Sampler: [langthomas.eu/sampler](url)\
+Angular App: [langthomas.eu/angular/home](url)\
+Headless mode: [langthomas.eu/headless](url)\
+API: [langthomas.eu/api](url)\
+Presets API: [langthomas.eu/api/presets](url)
 
 ## Features Sampler
 - Separate GUI and audio engine: The engine part is in js/Engine and GUI in js/GUI
