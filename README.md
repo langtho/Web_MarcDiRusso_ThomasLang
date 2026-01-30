@@ -1,11 +1,25 @@
 # Web_ThomasLang
-Ceci est le Git pour les TPs de Thomas Lang pour l'UE Web de Michel Buffa
+Sampler: [langthomas.eu/sampler]
+Angular App: [langthomas.eu/angular/home]
+Headless mode: [langthomas.eu/headless]
+API: [langthomas.eu/api]
+Presets API: [langthomas.eu/api/presets]
 
-## The JavaScript files
-You find all the JavaScript code in the **js** folder The code is seperated in two parts the **Sampler Engine** in the **Engine** folder and the **Sampler GUI** in the **GUI** folder.
-
-Else you'll find the css file in the **css** folder
-
+## Features Sampler
+- Separate GUI and audio engine: The engine part is in js/Engine and GUI in js/GUI
+- Presets menu build: Choose a Kit in the dropdown menu
+- Map computer keys to pads: You can use the keys
+```
+& é " '
+a z e r
+q s d f
+w x c v
+```
+- Midi Support:You can activate it by clicking <<activate>>
+- Record own sound: 1. Push the Play button (1.1 Accept microphone access) 2.Record 3. Stop recording 4. Push the add button or drag the text to add it to a pad
+- Freesound implementation: Open the Burger menu and search for a sound. You can prelisten to the sounds. If you want to add a sound drag and drop it to a pad
+- Save kits to server: Click the Save Kit button
+- Equalizer: you can play with the  
 
 ## Lancement
 - Sampler : `cd server && npm run start`
@@ -59,8 +73,19 @@ Permettre, depuis l’admin Angular, de consulter les catégories/sons, ajouter 
 - « Fournis-moi le plan pour faire évoluer la version locale vers une version connectée : les ajouts/suppressions depuis Angular doivent modifier réellement les presets d’AudioSampler. »
 - « Propose-moi une méthode pour itérer par étapes : valider le fonctionnement (navigation + actions CRUD) avant d’ajouter la prochaine fonctionnalité. »
 - « Explique-moi pourquoi il semble y avoir deux serveurs en dev sur le port 4200, puis comment clarifier/corriger la configuration. »
+- « What do I need to upload to the server for it to work? »
+- « Git errors when adding files and pathspec issues»
+- « Browser errors regarding MIME type conflicts (text/html instead of JS) and 403 Forbidden access »
+- « Repeated WebSocket connection errors for _stcore/stream »
+- « Nginx error logs regarding directory index permissions »
+- « I can't manage to implement the headless mode; somehow it doesn't accept the toggle »
+- « main.js:50 Uncaught (in promise) ReferenceError: $headlessToggle is not defined »
+- « I would like the code comments to always be in English and simple »
+- « Please explain the purpose of a headless mode »
+- « Can you give me all the questions I asked you in Markdown? »
 
 ### Outils/commandes utilisés (côté Angular)
 - GitHub Copilot
 - Lancement local : `cd admin` puis `npm start` (pour valider l’UI et les requêtes via le proxy).
+- Gemini (Free)
 
