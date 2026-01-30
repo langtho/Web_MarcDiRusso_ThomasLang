@@ -11,7 +11,7 @@ Else you'll find the css file in the **css** folder
 - Sampler : `cd server && npm run start`
 - Admin Angular : `cd admin && npm start`
 
-## IA — Partie Admin Angular
+## Partie Admin Angular (Réalisé par Marc Di Russo)
 
 ### Objectif fonctionnel
 Permettre, depuis l’admin Angular, de consulter les catégories/sons, ajouter un son, renommer un son et supprimer un son.
