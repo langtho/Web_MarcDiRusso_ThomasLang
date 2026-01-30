@@ -84,6 +84,14 @@ Permettre, depuis l’admin Angular, de consulter les catégories/sons, ajouter 
 - « Please explain the purpose of a headless mode »
 - « Can you give me all the questions I asked you in Markdown? »
 
+Note de Thomas Lang: J'ai encore démande plus de questions mais j'ai configuré le llm de ne pas se souvenir de mes conversation. En géneral je pose des questions comme:
+  - How do I implement something?
+  - How does [function work]?
+  - Why do I get error X?
+  - Give me an alternative way to do X
+  - Comment my code in plain and simple english
+  - Does this code respects seperability?
+    
 ### Outils/commandes utilisés (côté Angular)
 - GitHub Copilot
 - Lancement local : `cd admin` puis `npm start` (pour valider l’UI et les requêtes via le proxy).
