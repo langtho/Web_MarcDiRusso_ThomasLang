@@ -41,7 +41,7 @@ Permettre, depuis l’admin Angular, de consulter les catégories/sons, ajouter 
 - Rafraîchir les données depuis `GET /api/presets/index` après modification.
 
 
-### “Gros prompts” utilisés 
+### Prompts utilisés 
 - « Fournis-moi un plan pour concevoir une application Angular d’administration pour AudioSampler (inspirée du projet “Assignments”), qui permette de consulter, ajouter et supprimer des sons. »
 - « Fournis-moi un plan pour organiser l’interface par catégories (comme le dossier `presets`) : clic sur une catégorie → liste filtrée des sons correspondants. »
 - « Explique-moi comment remplacer un affichage en liste par une table Angular Material (`mat-table`) avec des colonnes utiles (nom, catégorie, URL, actions). »
