@@ -14,11 +14,11 @@ a z e r
 q s d f
 w x c v
 ```
-- Midi Support:You can activate it by clicking <<activate>>
+- Midi Support:You can activate it by clicking "activate"
 - Record own sound: 1. Push the Play button (1.1 Accept microphone access) 2.Record 3. Stop recording 4. Push the add button or drag the text to add it to a pad
 - Freesound implementation: Open the Burger menu and search for a sound. You can prelisten to the sounds. If you want to add a sound drag and drop it to a pad
 - Save kits to server: Click the Save Kit button
-- Equalizer: you can play with the  
+- Equalizer: you can play with the sliders the tone will change 
 
 ## Lancement
 - Sampler : `cd server && npm run start`
